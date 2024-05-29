@@ -2,6 +2,9 @@
 
 `edfEEG2024` is a MATLAB script designed to analyze EEG/EMG data ('.edf' format) in mice for detection of sleep states, epileptiform spike-wave discharges (SWD), and generalized tonic-clonic seizures (GTCS).
 
+#### Author
+Dr. Yueqing Peng
+
 ### Table of Contents
 | Section                                                                                 |
 | --------------------------------------------------------------------------------------- |
@@ -28,8 +31,8 @@
 ### Download the edfEEG2024 script
 
 1. At the top of this repository, click the green ‘<> Code’ button, then click ‘Download ZIP’
-2. Extract the '.zip' to the MATLAB folder, which is found in the ‘Documents’ folder by default (e.g. ‘/Users/davidrivas/Documents/MATLAB’)
-3. Consider watching or starring this repository for new updates to the script
+2. Extract the 'edfEEG2024' subdirectory `/edfEEG2024/edfEEG2024/` inside the '.zip' to the MATLAB folder, which is found in the ‘Documents’ folder by default (e.g. ‘/Users/davidrivas/Documents/MATLAB’)
+3. Consider watching or starring this GitHub repository for new updates to the script
 
 
 ## Software guide
