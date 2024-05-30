@@ -2,8 +2,8 @@
 
 `edfEEG2024` is a MATLAB script designed to analyze EEG/EMG data ('.edf' format) in mice for detection of sleep states, epileptiform spike-wave discharges (SWD), and generalized tonic-clonic seizures (GTCS).
 
-#### Author
-Dr. Yueqing Peng
+#### Author:
+[Dr. Yueqing Peng](https://www.pathology.columbia.edu/profile/yueqing-peng-phd)
 
 ![edfEEG2024](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/edfEEG2024.png)
 
@@ -69,22 +69,26 @@ Dr. Yueqing Peng
   * If the EEG looks noisy at 60 Hz, try clicking the ‘notch’ checkbox in the ‘Bandpass Filters (Hz)’ section of the GUI. Close the spectrogram figure and click ‘Spectrogram’ again.
   * If the EMG looks noisy, try filtering the EMG range in the ‘Bandpass Filters (Hz)’ section of the GUI. For the lower range of the EMG filter, do not enter a value larger than ‘30’. The upper range of the EMG filter should not be changed. Close the spectrogram figure and click ‘Spectrogram’ again.
   ![EEG Spectrogram](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/edfEEG2024.png)
+  **Figure 4.** *An example of the EEG spectrogram and EMG line plot that generates after clicking 'Spectrogram'.*
 11. In the ‘Function’ section of the GUI, click ‘Detect events’. The script will automatically assign sleep state scores based on the EEG spectrogram. A color-coded bar will appear above the EEG spectrogram. These are the following color-codes:
   * **Grey**: Wake (little to no EEG activity, high EMG activity)
   * **Orange**: NREM (high EEG activity (0.5 – 6 Hz), low EMG activity)
   * **Purple**: REM (high EEG activity (6 – 9 Hz), low EMG activity)
   ![Detect events](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/detect-events.png)
+  **Figure 5.** *A color-coded sleep state scoring bar will appear above the spectrogram after clicking 'Detect events'.*
 12. To zoom in on the EEG spectrogram (and EMG line plot), set a 10-minute time range in the ‘Figures display’ section of the GUI. For example, if the ‘Start(min)’ and ‘End (min)’ is set to ‘0’ and ‘60’, respectively, then set the ‘Figures display: Time’ to ‘0’ and ‘10’ to zoom in on the first 10 minutes. If the ‘Start(min)’ and ‘End (min)’ is set to ‘120’ and ‘180’, respectively, then set the ‘Figures display: Time’ to ‘120’ and ‘130’ to zoom in on the first 10 minutes.
   * If you would like, you can zoom in to a smaller time range (e.g. 5-minute time range)
   * To shift to the next 10 minutes of the figure, click the arrow buttons (‘<’ and ‘>’) in the ‘Figures display’ section of the GUI
   * To reset the figure back to the default 60 minute range, click the ‘reset’ button in the ‘Figures display’ section of the GUI
   ![Zoomed-in spectrogram](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/spectrogram-zoom.png)
+  **Figure 6.** *A zoomed view of the first 10-minutes of data.*
 13. The automated sleep state scoring done with the ‘Detect events’ button will likely not be 100% accurate. To fix this, check the ‘Manual-score’ checkbox in the ‘Function’ section of the GUI
 14. The green ‘Mark’ button in the ‘Manual scoring’ section of the GUI will activate. Select the sleep-state you would like to manually score, then press ‘Mark’. Hove your cursor over the color-coded bar in spectrogram figure. You’ll notice the cursor is now a crosshair (‘+’) shape. Click on the color-coded bar at the boundaries of the sleep state period you would like to manually score. You must click on the start-to-end (or end-to-start) of the sleep state period (total of **two clicks**, not click-and-drag).
   * **Note:** When you are manually scoring, make sure you are clicking directly on the color-coded bar. Clicking elsewhere may incorrectly score sleep states
   * If any minor errors are made during manual scoring, try manually re-scoring the error. There is no “undo” function in the script.
   * If any major errors are made during manual scoring, click ‘Detect events’ in the GUI again and restart the manual scoring
   ![Manual scoring](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/manual-scoring.png)
+  **Figure 7.** *An example of the manual scoring cursor. The color-coded bar is the area where you should click while manually scoring sleep states.*
 15. As you manually score, the ‘Command Window’ in the MATLAB program will output the updated ‘Wake/NREM/REM’ times (in minutes)
 16.	Once you are done scoring the entire 60-minute time window, remember to click the ‘reset’ button in the ‘Figures display’ section of the GUI. Double-check that the sleep state scoring looks accurate.
 17. In the top toolbar of the figure window, click ‘File > Save’. By default, the save location is inside the script folder. Do not save inside this folder to prevent the code from breaking. Locate the folder where the ‘.edf’ file was saved. Save the file with a consistent  naming structure such as: **ANIMAL-ID_FILE-NUMBER_START-END-TIME** (e.g. ‘K168-2_09_0-60min’)
