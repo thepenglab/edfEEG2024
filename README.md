@@ -5,6 +5,8 @@
 #### Author
 Dr. Yueqing Peng
 
+![edfEEG2024](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/edfEEG2024.png)
+
 ### Table of Contents
 | Section                                                                                 |
 | --------------------------------------------------------------------------------------- |
@@ -28,6 +30,9 @@ Dr. Yueqing Peng
   * Parallel Computing Toolbox
   * Signal Processing Toolbox
 
+![Add-ons](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/add-ons.png)
+**Figure 1.** *'Add-Ons' option at the top 'Home' tab of the MATLAB program.*
+
 ### Download the edfEEG2024 script
 
 1. At the top of this repository, click the green ‘<> Code’ button, then click ‘Download ZIP’
@@ -45,12 +50,16 @@ Dr. Yueqing Peng
     * If the GUI doesn’t appear, check if any red error messages were output in the MATLAB ‘Command Window’
     * Be sure the [required add-ons listed in step 4 of the installation section](#install-matlab-and-required-add-ons) were installed
     * If the GUI window is larger than your screen and isn’t entirely visible, increase your monitor resolution
+  ![GUI](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/gui.png)
+  **Figure 2.** *The edfEEG2024 GUI window should appear after running the `edfgui.m` code.*
 3. In the GUI, click on ‘Open File’. Locate and open the ‘.edf’ file you’d like to analyze
 4. In the ‘Parameter’ section, choose the ‘Start(min)’ and ‘End(min)’ time window you would like to analyze. The script analyzes data in 60min time windows
   * If this is the first time opening the file for analysis, leave the ‘Start(min)’ and ‘End(min)’ at the default ‘0’ and ‘60’ values, respectively.
   * If you would like to analyze the second hour, set the ‘Start(min)’ and ‘End(min)’ at ‘60’ and ‘120’, respectively
 5. Click ‘View Data’. A new figure titled ‘Original EEG data’ will appear
-6. Evaluate the signal of both EEG channels (in this example, ‘EEG EEG1A’ & ‘EEG EEG2A’) and identify the channel with the largest amplitude. In the example above, this is ‘EEG EEG2A’ (highlighted in red). Make note of this, then close the figure window.
+  ![Orignal EEG Data](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/orig-eeg-data.png)
+  **Figure 3.** *After clicking 'View Data', the figure 'Original EEG data' will appear in a separate window.*
+6. Evaluate the signal of both EEG channels (in this example, ‘EEG EEG1A’ & ‘EEG EEG2A’) and identify the channel with the largest amplitude. In the example above (Figure 2), this is ‘EEG EEG2A’ (highlighted in red). Make note of this, then close the figure window.
 7. In the ‘File’ section, for ‘EEG:’, select the EEG channel you'd like to analyze from the dropdown menu (e.g. EEG EEG2A). ‘ref:’ selects a reference channel. If you're not using a reference channel, leave ‘ref:’ as the default ‘N/A’ option.
   * **Note:** Once you choose an EEG channel from the dropdown menu, this will be the EEG channel used for the rest of the analyses for that mouse/experiment
 8. In the ‘File’ section, for ‘EMG:’, select the EMG channel (e.g. ‘EMG EMG’) from the dropdown menu. ‘ref:’ selects a reference channel. If you're not using a reference channel, leave ‘ref:’ as the default ‘N/A’ option.
@@ -59,19 +68,23 @@ Dr. Yueqing Peng
   * If the EEG signal looks “blank” (mostly blue), try decreasing the ‘Clim’ value in the ‘Figures display’ section of the GUI (e.g. 1, 0.5, 0.2, 0.15) and clicking anywhere on the spectrogram window. The EEG spectrum will update with a new colormap of the signal strength. As you navigate the GUI and continue analyzing the data, the EEG spectrum may reset to the default value of 2 and appear “blank” again. Re-type the ‘Clim’ value you chose earlier and click anywhere on the spectrogram figure again
   * If the EEG looks noisy at 60 Hz, try clicking the ‘notch’ checkbox in the ‘Bandpass Filters (Hz)’ section of the GUI. Close the spectrogram figure and click ‘Spectrogram’ again.
   * If the EMG looks noisy, try filtering the EMG range in the ‘Bandpass Filters (Hz)’ section of the GUI. For the lower range of the EMG filter, do not enter a value larger than ‘30’. The upper range of the EMG filter should not be changed. Close the spectrogram figure and click ‘Spectrogram’ again.
+  ![EEG Spectrogram](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/edfEEG2024.png)
 11. In the ‘Function’ section of the GUI, click ‘Detect events’. The script will automatically assign sleep state scores based on the EEG spectrogram. A color-coded bar will appear above the EEG spectrogram. These are the following color-codes:
   * **Grey**: Wake (little to no EEG activity, high EMG activity)
   * **Orange**: NREM (high EEG activity (0.5 – 6 Hz), low EMG activity)
   * **Purple**: REM (high EEG activity (6 – 9 Hz), low EMG activity)
+  ![Detect events](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/detect-events.png)
 12. To zoom in on the EEG spectrogram (and EMG line plot), set a 10-minute time range in the ‘Figures display’ section of the GUI. For example, if the ‘Start(min)’ and ‘End (min)’ is set to ‘0’ and ‘60’, respectively, then set the ‘Figures display: Time’ to ‘0’ and ‘10’ to zoom in on the first 10 minutes. If the ‘Start(min)’ and ‘End (min)’ is set to ‘120’ and ‘180’, respectively, then set the ‘Figures display: Time’ to ‘120’ and ‘130’ to zoom in on the first 10 minutes.
   * If you would like, you can zoom in to a smaller time range (e.g. 5-minute time range)
   * To shift to the next 10 minutes of the figure, click the arrow buttons (‘<’ and ‘>’) in the ‘Figures display’ section of the GUI
   * To reset the figure back to the default 60 minute range, click the ‘reset’ button in the ‘Figures display’ section of the GUI
+  ![Zoomed-in spectrogram](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/spectrogram-zoom.png)
 13. The automated sleep state scoring done with the ‘Detect events’ button will likely not be 100% accurate. To fix this, check the ‘Manual-score’ checkbox in the ‘Function’ section of the GUI
 14. The green ‘Mark’ button in the ‘Manual scoring’ section of the GUI will activate. Select the sleep-state you would like to manually score, then press ‘Mark’. Hove your cursor over the color-coded bar in spectrogram figure. You’ll notice the cursor is now a crosshair (‘+’) shape. Click on the color-coded bar at the boundaries of the sleep state period you would like to manually score. You must click on the start-to-end (or end-to-start) of the sleep state period (total of **two clicks**, not click-and-drag).
   * **Note:** When you are manually scoring, make sure you are clicking directly on the color-coded bar. Clicking elsewhere may incorrectly score sleep states
   * If any minor errors are made during manual scoring, try manually re-scoring the error. There is no “undo” function in the script.
   * If any major errors are made during manual scoring, click ‘Detect events’ in the GUI again and restart the manual scoring
+  ![Manual scoring](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/manual-scoring.png)
 15. As you manually score, the ‘Command Window’ in the MATLAB program will output the updated ‘Wake/NREM/REM’ times (in minutes)
 16.	Once you are done scoring the entire 60-minute time window, remember to click the ‘reset’ button in the ‘Figures display’ section of the GUI. Double-check that the sleep state scoring looks accurate.
 17. In the top toolbar of the figure window, click ‘File > Save’. By default, the save location is inside the script folder. Do not save inside this folder to prevent the code from breaking. Locate the folder where the ‘.edf’ file was saved. Save the file with a consistent  naming structure such as: **ANIMAL-ID_FILE-NUMBER_START-END-TIME** (e.g. ‘K168-2_09_0-60min’)
