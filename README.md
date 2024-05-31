@@ -75,31 +75,29 @@
   * **Orange**: NREM (high EEG activity (0.5 – 6 Hz), low EMG activity)
   * **Purple**: REM (high EEG activity (6 – 9 Hz), low EMG activity)
   ![Detect events](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/detect-events.png)
-  **Figure 5.** *A color-coded sleep state scoring bar will appear above the spectrogram after clicking 'Detect events'.*
-12. To zoom in on the EEG spectrogram (and EMG line plot), set a 10-minute time range in the ‘Figures display’ section of the GUI. For example, if the ‘Start(min)’ and ‘End (min)’ is set to ‘0’ and ‘60’, then set the ‘Figures display: Time’ to ‘0’ and ‘10’ to zoom in on the first 10 minutes. If the ‘Start(min)’ and ‘End (min)’ is set to ‘120’ and ‘180’, then set the ‘Figures display: Time’ to ‘120’ and ‘130’ to zoom in on the first 10 minutes.
+  **Figure 5.** *A color-coded sleep state scoring bar will appear above the spectrogram after clicking 'Detect events'. Grey represents 'Wake', orange represents 'NREM', and purple represents 'REM' (labeled with text in this figure). Note how spikes in the EMG signal align with 'gaps' in the EEG spectrogram activity (an example of **micro-arousals**).*
+12. To zoom in on the EEG spectrogram and EMG line plot (as seen above in **Figure 5**), set a 10-minute time range in the ‘Figures display’ section of the GUI. For example, if the ‘Start(min)’ and ‘End (min)’ is set to ‘0’ and ‘60’, then set the ‘Figures display: Time’ to ‘0’ and ‘10’ to zoom in on the first 10 minutes. If the ‘Start(min)’ and ‘End (min)’ is set to ‘120’ and ‘180’, then set the ‘Figures display: Time’ to ‘120’ and ‘130’ to zoom in on the first 10 minutes.
   * If you would like, you can zoom in to a smaller time range (e.g. 5-minute time range)
   * To shift to the next 10 minutes of the figure, click the arrow buttons (‘<’ and ‘>’) in the ‘Figures display’ section of the GUI
   * To reset the figure back to the default 60 minute range, click the ‘reset’ button in the ‘Figures display’ section of the GUI
-  ![Zoomed-in spectrogram](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/spectrogram-zoom.png)
-  **Figure 6.** *A zoomed view of the first 10-minutes of data.*
 13. The automated sleep state scoring done with the ‘Detect events’ button will likely not be 100% accurate. To fix this, check the ‘Manual-score’ checkbox in the ‘Function’ section of the GUI
 14. The green ‘Mark’ button in the ‘Manual scoring’ section of the GUI will activate. Select the sleep-state you would like to manually score, then press ‘Mark’. Hover your cursor over the color-coded bar in spectrogram figure. You’ll notice the cursor is now a crosshair (‘+’) shape. Click on the color-coded bar at the boundaries of the sleep state period you would like to manually score. You must click on the start-to-end (or end-to-start) of the sleep state period (total of **two clicks**, not click-and-drag).
   * **Note:** When you are manually scoring, make sure you are clicking directly on the color-coded bar. Clicking elsewhere may incorrectly score sleep states
   * If any minor errors are made during manual scoring, try manually re-scoring the error. There is no “undo” function in the script.
   * If any major errors are made during manual scoring, click ‘Detect events’ in the GUI again and restart the manual scoring
   ![Manual scoring](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/manual-scoring.png)
-  **Figure 7.** *An example of the manual scoring cursor (circled in red). The color-coded bar is the area where you should click while manually scoring sleep states.*
+  **Figure 6.** *An example of the manual scoring cursor (circled in red). The color-coded bar is the area where you should click while manually scoring sleep states.*
 15. As you manually score, the ‘Command Window’ in the MATLAB program will output the updated ‘Wake/NREM/REM’ times (in minutes)
 16.	Once you are done scoring the entire 60-minute time window, remember to click the ‘reset’ button in the ‘Figures display’ section of the GUI. Double-check that the sleep state scoring looks accurate.
 17. In the top toolbar of the figure window, click ‘File > Save’. By default, the save location is inside the script folder. Do not save inside this folder to prevent the code from breaking. Locate the folder where the ‘.edf’ file was saved. Save the file with a consistent  naming structure such as: **ANIMAL-ID_FILE-NUMBER_START-END-TIME** (e.g. ‘K168-2_09_0-60min’)
 18. In the ‘File’ section of the GUI, click ‘Save Result’. The ‘Command Window’ in the MATLAB program will output that the ‘.mat’ file was successfully saved in the folder you selected in the previous step.
   * In addition to a ‘.mat’ file, a ‘.txt’ file with the same naming convention is also saved, which contains information such as the number of sleep epochs, the times of each sleep epoch, and the total times of each sleep epoch
   ![.txt file](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/analyzed-txtfile.png)
-  **Figure 8.** *An example of the '.txt' file generated after clicking 'Save Data'.*
+  **Figure 7.** *An example of the '.txt' file generated after clicking 'Save Data'.*
 19. To analyze the next hour within the same file, click the ‘>’ (right arrow) button in the ‘Process time window’ section of the GUI. The ‘Start(min)’ and ‘End(min)’ values should both increase by ‘60’
 20. Click the ‘View Data’ button in the ‘File’ section of the GUI
   * If you forget to press this button, you’ll see that the spectrogram is the same as the previous time period you just finished analyzing
-21. Click the ‘Spectrogram’ button in the GUI (refer to step 11 on page 4)
+21. Click the ‘Spectrogram’ button in the GUI
 
 ### Re-scoring previously scored time windows
 
@@ -124,4 +122,4 @@
     4. Click 'Done'
     5. Select a resolution larger than the default resolution (e.g. if the default is '1512 x 982', select '1800 x 1169')
     ![GUI larger than screen](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/gui-larger.png)
-    **Figure 9.** *An example of the GUI window being larger than the screen in macOS. Note how the buttons normally seen in the 'File' section of the GUI are missing here.*
+    **Figure 8.** *An example of the GUI window being larger than the screen in macOS. Note how the buttons normally seen in the 'File' section of the GUI are missing here.*
