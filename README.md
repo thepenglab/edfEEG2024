@@ -46,12 +46,13 @@
 
 1. Inside the ‘edfEEG2024’ folder, open the `edfgui.m` file with MATLAB
 2. In the ‘Editor’ tab at the top, click ‘Run’. The GUI window should now appear
+  * Alternatively, you can type `edfgui` in the MATLAB 'Command Window'
   * Troubleshooting (refer to [troubleshooting section](#troubleshooting) for more details):
     * If the GUI doesn’t appear, check if any red error messages were output in the MATLAB ‘Command Window’
     * Be sure the [required add-ons listed in step 4 of the installation section](#install-matlab-and-required-add-ons) were installed
     * If the GUI window is larger than your screen and isn’t entirely visible, increase your monitor resolution
   ![GUI](https://raw.githubusercontent.com/thepenglab/edfEEG2024/master/images/gui.png)
-  **Figure 2.** *The edfEEG2024 GUI window should appear after running the `edfgui.m` code.*
+  **Figure 2.** *The edfEEG2024 GUI window should appear after running the `edfgui` code.*
 3. In the GUI, click on ‘Open File’. Locate and open the ‘.edf’ file you’d like to analyze
 4. In the ‘Parameter’ section, choose the ‘Start(min)’ and ‘End(min)’ time window you would like to analyze. The script analyzes data in 60min time windows
   * If this is the first time opening the file for analysis, leave the ‘Start(min)’ and ‘End(min)’ at the default ‘0’ and ‘60’ values, respectively.
@@ -64,7 +65,8 @@
   * **Note:** Once you choose an EEG channel from the dropdown menu, this will be the EEG channel used for the rest of the analyses for that mouse/experiment
 8. In the ‘File’ section, for the ‘EMG:’ option, select the EMG channel (e.g. ‘EMG EMG’) from the dropdown menu. ‘ref:’ selects a reference channel. If you're not using a reference channel, leave ‘ref:’ as the default ‘N/A’ option.
 9. In the ‘Function’ section, make sure the ‘Sleep’ checkbox is checked. This will automatically set the ‘Bin(sec)’ and ‘Step(sec)’ to the default values of ‘5’ and ‘2’, respectively.
-10. In the ‘Function’ section, click ‘Spectrogram’. A figure containing the resulting EEG spectrogram (top of figure) and EMG line plot (bottom of figure) will appear. In the EEG spectrum, *blue* represents *no* EEG signal, *turquois* represents *weak* EEG signal, *green* represents *average* EEG signal, and *red* represents *strong* EEG signal. In the EMG line plot, low EMG values occur when the mouse is stationary (or sleeping), whereas high EMG values occur when the mouse is moving (awake)
+10. In the ‘Function’ section, click ‘Spectrogram’. A figure containing the resulting EEG spectrogram (top of figure) and EMG line plot (bottom of figure) will appear. In the EEG spectrum, *blue* represents *no* EEG signal, *green* represents *weak* EEG signal, *yellow* represents *average* EEG signal, and *red* represents *strong* EEG signal. In the EMG line plot, low EMG values occur when the mouse is stationary (or sleeping), whereas high EMG values occur when the mouse is moving (awake). 
+Troubleshooting (refer to [troubleshooting section](#troubleshooting) for more details):
   * If the EEG signal looks “blank” (mostly blue), try decreasing the ‘Clim’ value in the ‘Figures display’ section of the GUI (e.g. 1, 0.5, 0.2, 0.15) and clicking anywhere on the spectrogram window. The EEG spectrum will update with a new colormap of the signal strength. As you navigate the GUI and continue analyzing the data, the EEG spectrum may reset to the default value of 2 and appear “blank” again. Re-type the ‘Clim’ value you chose earlier and click anywhere on the spectrogram figure again
   * If the EEG looks noisy at 60 Hz, try clicking the ‘notch’ checkbox in the ‘Bandpass Filters (Hz)’ section of the GUI. Close the spectrogram figure and click ‘Spectrogram’ again.
   * If the EMG looks noisy, try filtering the EMG range in the ‘Bandpass Filters (Hz)’ section of the GUI. For the lower range of the EMG filter, do not enter a value larger than ‘30’. The upper range of the EMG filter should not be changed. Close the spectrogram figure and click ‘Spectrogram’ again.
