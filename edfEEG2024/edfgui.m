@@ -141,7 +141,7 @@ function pushbutton_file_open_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 PathName = getappdata(0,'PathName');
-[FileName,PathName,FilterIndex] = uigetfile({'*.edf';'*.mat'},'Select a file',PathName);
+[FileName,PathName,FilterIndex] = uigetfile({'*'},'Select a file',PathName);
 fname=fullfile(PathName,FileName);
 if FileName==0
     disp('No file seleted!');
