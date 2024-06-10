@@ -92,6 +92,7 @@ info.filterEEG=[0.5,50];              %bandpass filter for EEG
 info.filterEMG=[1,200];            %bandpass filter for EMG
 info.filterNotch=1;                 %notch filter, 1=on, 0=off
 info.filterOnOff=1;                 %filter on/off for VIEW-DATA!
+info.matFileVersion=0;              %0=original, 1 for modified 
 setappdata(0,'info',info);
 %update panel
 set(handles.edit_par_binTime,'String',info.binTime);
@@ -161,12 +162,13 @@ if contains(FileName,'.mat')
     setappdata(0,'egDat',egDat);
     setappdata(0,'mgDat',mgDat);
     %update info
-    info2=info;
-    info=getappdata(0,'info');
+    %info2=info;
+    %info=getappdata(0,'info');
+    %info.binTime=info2.binTime;
+    %info.stepTime=info2.stepTime;
     info.PathName=PathName;
     info.FileName=FileName;
-    info.binTime=info2.binTime;
-    info.stepTime=info2.stepTime;
+    info.matFileVersion=1;
     set(handles.edit_par_binTime,'String',info.binTime);
     set(handles.edit_par_stepTime,'String',info.stepTime);
     %plot data
@@ -176,6 +178,7 @@ elseif contains(FileName,'.edf') || contains(FileName,'.EDF')
     info=getappdata(0,'info');
     info.PathName=PathName;
     info.FileName=FileName;
+    info.matFileVersion=0;
     %read file-header to get some basic information
     tempEdfHandles = EdfInfo(fname);
     info.FileInfo  = tempEdfHandles.FileInfo;
@@ -249,15 +252,18 @@ szEvents=getappdata(0,'szEvents');
 %sleepData=getappdata(0,'sleepData');
 sleepData=profileSleep(state,info);
 % save scoring data into mat-file 
-egName=erase(info.Labels{info.eegCh(1)}," ");
-f0=[egName,'_m',num2str(info.procWindow(1)),'-',num2str(info.procWindow(2)),'.mat'];
-filename=fullfile(PathName,f0);
+if info.matFileVersion>0
+    filename=fullfile(info.PathName,info.FileName);
+else
+    egName=erase(info.Labels{info.eegCh(1)}," ");
+    f0=[egName,'_m',num2str(info.procWindow(1)),'-',num2str(info.procWindow(2)),'.mat'];
+    filename=fullfile(PathName,f0);
+end
 save(filename,'PathName','specDat','emgAmpDat','state','info','egDat','mgDat','szEvents','sleepData');
 fprintf('data saved in %s\n',filename);
 %also save events into a txt-file
-f1=[f0(1:end-4),'.txt'];
-filename=fullfile(PathName,f1);
-save2Txt(szEvents,sleepData,info,filename);
+f1=[filename(1:end-4),'.txt'];
+save2Txt(szEvents,sleepData,info,f1);
 
 
 % --- Executes on button press in pushbutton_file_viewData.
