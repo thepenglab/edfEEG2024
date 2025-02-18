@@ -93,6 +93,7 @@ info.filterEMG=[1,200];            %bandpass filter for EMG
 info.filterNotch=1;                 %notch filter, 1=on, 0=off
 info.filterOnOff=1;                 %filter on/off for VIEW-DATA!
 info.matFileVersion=0;              %0=original, 1 for modified 
+info.xytrackingFile=[];             %csv file with XY tracking from deeplabcut
 setappdata(0,'info',info);
 %update panel
 set(handles.edit_par_binTime,'String',info.binTime);
@@ -141,7 +142,7 @@ function pushbutton_file_open_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 PathName = getappdata(0,'PathName');
-[FileName,PathName,FilterIndex] = uigetfile({'*'},'Select a file',PathName);
+[FileName,PathName,FilterIndex] = uigetfile({'*.edf';'*.mat'},'Select a file',PathName);
 fname=fullfile(PathName,FileName);
 if FileName==0
     disp('No file seleted!');
@@ -214,6 +215,14 @@ elseif contains(FileName,'.edf') || contains(FileName,'.EDF')
     set(handles.listbox_info_labels_selected,'String',info.Labels);
     %update EEG channel listboxes
     updateFileLabelList(handles,info.Labels);
+end
+%check if there are cvs files in the folder
+flist=dir(fullfile(PathName,'*.csv'));
+if ~isempty(flist)
+    %sort filenames by name
+    [~,idx] = natsortfiles({flist.name});
+    flist = flist(idx);
+    info.xytrackingFile=flist;
 end
 setappdata(0,'info',info);
 
@@ -358,6 +367,22 @@ else
             mgDat.Labels=allData.Labels{emgCh(1)};
         end
         mDat=getEMGAmplitude(mgDat,info);
+        %add velData to mDat if xy tracking data available, 1/27/2025
+        if ~isempty(info.xytrackingFile)
+            disp('loading and processing xy tracking.');
+            %assume csv files are organized by hourly, and in order
+            fnum=round(info.procWindow(1)/60)+1;
+            xyfilename=fullfile(info.PathName,info.xytrackingFile(fnum).name);
+            [xyDat,velDat]=readXYVelData(xyfilename);
+            mDat.velDat=velDat;
+            %time to match EEG/EMG
+            mDat.velDat(:,1)=info.procWindow(1)*60+velDat(:,1);
+            %smooth velDat
+            b=info.stepTime*20+1;       %assume frameRate=20;
+            mDat.velDat(:,2)=smooth(velDat(:,2),b);
+            mDat.xyDat=xyDat;
+            disp('velDat done!');
+        end
         setappdata(0,'emgAmpDat',mDat);
         setappdata(0,'mgDat',mgDat);
         fprintf('EMG processing done\n');

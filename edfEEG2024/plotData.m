@@ -59,8 +59,13 @@ else
 end
 %h0=100;
 %label the stimulation period
-plot(emgT/60,emgDat,'k','linewidth',1);
+plot(emgT/60,emgDat,'linewidth',1,'Color',[0.5,0.5,0.5]);
 set(gca,'xlim',[emgT(1),emgT(end)]/60,'fontsize',16,'Box','on','linewidth',1);
+%also plot velocity if available
+if isfield(mDat,'velDat')
+    hold on;
+    plot(mDat.velDat(:,1)/60,mDat.velDat(:,2),'r');
+end
 %set(gca,'ylim',ylm);
 %set(gca,'XTick',0:5:30);
 % y0=100*(floor(h0/100));

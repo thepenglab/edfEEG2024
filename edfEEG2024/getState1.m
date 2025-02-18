@@ -37,12 +37,24 @@ end
 function state=getSleepState(pDat,mDat)
 con_highDelta = pDat.phighfband==1;
 if ~isempty(mDat)
-    th=[0,0,0.5,1];     %defualt threshold: delta/theta/ratio/empAmp
+    th=[0,0.5,0.5,1];     %defualt threshold: delta/theta/ratio/empAmp
     %deltath=mean(pDat.delta)+th(1)*std(pDat.delta);
     thetath=mean(pDat.theta)+th(2)*std(pDat.theta);
     ratioth=mean(pDat.ratio)+th(3)*std(pDat.ratio);
-    emgth=mean(mDat.Amp(con_highDelta))+th(4)*std(mDat.Amp(con_highDelta));
-    con_lowEMG=mDat.Amp<emgth;
+    %if XY-tracking based velDat available, replace EMG-Amp with it
+    if isfield(mDat,'velDat')
+        %resample velDat to match EMG-Amp
+        tsin=timeseries(mDat.velDat(:,2),mDat.velDat(:,1));
+        tsout=resample(tsin,mDat.Tm);
+        vel2=tsout.data;
+        %threshold
+        emgth=mean(vel2(con_highDelta))+th(4)*std(vel2(con_highDelta));
+        mgDat=vel2;
+    else
+        emgth=mean(mDat.Amp(con_highDelta))+th(4)*std(mDat.Amp(con_highDelta));
+        mgDat=mDat.Amp;
+    end
+    con_lowEMG=mgDat<emgth;
     
     %part1---NREM 
     %NREM based on high delta-power and low EMG amplitude  
