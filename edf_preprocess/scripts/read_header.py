@@ -1,24 +1,7 @@
 import argparse
 import sys
 
-from pyedflib import highlevel
-
-
-def read_header(file_path):
-    """
-    Reads the header of an EDF file using pyEDFlib.
-
-    Args:
-        file_path (str): Path to the EDF file.
-
-    Returns:
-        dict: EDF file header metadata.
-    """
-    try:
-        header = highlevel.read_edf_header(file_path)
-        return header
-    except Exception as e:
-        sys.exit(f"Error reading EDF header: {e}")
+from src import edf_class
 
 
 def parse_arguments():
@@ -41,5 +24,6 @@ if __name__ == "__main__":
     if not file_path.endswith(".edf"):
         sys.exit("Error: The provided file is not an EDF file.")
 
-    header = read_header(file_path)
+    edf = edf_class.Edffile(file_path)
+    header = edf.read_header()
     print(header)
