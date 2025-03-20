@@ -423,7 +423,7 @@ function processFolder(folder, startMin, lightseting)
     [~, folderName] = fileparts(folder);
     FileName = ['sleepMetrics_' folderName '_' nowstr '.xls'];
     fname = fullfile(folder, FileName);
-    label1 = {'Hour', 'ZT-time', 'Wake', 'NREMS', 'REMS'};
+    label1 = {'Standard Hour Time', 'ZT-time', 'Wake(min)', 'NREM(min)', 'REM(min)'};
     
     % Sheet 1 - basic summary
     writecell(label1, fname, 'Sheet', 1, 'Range', 'A1:E1');
@@ -435,15 +435,15 @@ function processFolder(folder, startMin, lightseting)
     label1 = {'total(min)', 'light(min)', 'dark(min)'};
     writecell(label1', fname, 'Sheet', 1, 'Range', 'B27:B29'); 
     writematrix(dur_24h, fname, 'Sheet', 1, 'Range', 'C27:E29');
-    label1 = {'bouts-24h', 'bouts-light', 'bouts-dark'};
+    label1 = {'total # bouts', '# bouts light', '# bouts dark'};
     writecell(label1', fname, 'Sheet', 1, 'Range', 'B31:B33'); 
     writematrix(bouts, fname, 'Sheet', 1, 'Range', 'C31:E33'); 
-    label1 = {'bout-duration(s)-24h', 'dur-light', 'dur-dark'};
+    label1 = {'total avg bout-duration(s)', 'avg bout dur-light(s)', 'avg bout dur-dark(s)'};
     writecell(label1', fname, 'Sheet', 1, 'Range', 'B35:B37'); 
     writematrix(bout_dur, fname, 'Sheet', 1, 'Range', 'C35:E37');  
-    label1 = {'Transitions'};
+    label1 = {'# Transitions'};
     writecell(label1, fname, 'Sheet', 1, 'Range', 'H1'); 
-    label1 = {'W-N', 'N-R', 'N-W', 'R-N', 'R-W'};
+    label1 = {'Wake-NREM', 'NREM-REM', 'NREM-Wake', 'RREM-NREM', 'REM-Wake'};
     writecell(label1', fname, 'Sheet', 1, 'Range', 'H2:H6'); 
     writematrix(transit', fname, 'Sheet', 1, 'Range', 'I2:I6'); 
     
