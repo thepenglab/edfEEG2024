@@ -6,6 +6,7 @@
 base_folder = '/Users/davidrivas/Documents/research/eeg/eeg-data/Artemis/K168-2';
 startMin = 0; % Start minute of processed data
 lightseting = [6,18]; % Light on and off time
+lowpass_cutoff = 40; % Lowpass filter cutoff frequency in Hz
 batch_size = 6; % Number of .mat files (hours) to process at once (must divide evenly into 24)
 
 % Function to find all .mat files in base_folder and its subfolders
@@ -67,7 +68,7 @@ function sortedFiles = sortMatFiles(fileList)
 end
 
 % Function to process a batch of .mat files
-function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFolder)
+function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFolder, lowpass_cutoff)
     disp(['Processing batch: ' num2str(batchNumber)]);
     
     % Data to calculate
@@ -369,25 +370,85 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
     idx = find(ds == -2 & bufferState == 0);
     transit(5) = length(idx);
     
-    % Calculate power (unchanged)
+    % Calculate power (modified to use lowpass_cutoff and normalize after averaging)
     pLen = size(specDat.p, 2);
     pLen = 201;
     power_sleep = zeros(pLen, 6);  % power in NREMS (0-20Hz), [original, relative] for Wake/NREM/REM
-    pm0 = mean(bufferPower);
-    % normalize to total power (0-50Hz)
-    powerMap = 100 * bufferPower ./ sum(pm0);
-    idx = (bufferState == 0);
-    power_sleep(:, 1) = mean(bufferPower(idx, :));
-    power_sleep(:, 2) = mean(powerMap(idx, :));
-    % for NREM sleep
-    idx = (bufferState == 1);
-    power_sleep(:, 3) = mean(bufferPower(idx, :));
-    power_sleep(:, 4) = mean(powerMap(idx, :));
-    % for REM sleep
-    idx = (bufferState == 2);
-    power_sleep(:, 5) = mean(bufferPower(idx, :));
-    power_sleep(:, 6) = mean(powerMap(idx, :));
     
+    % Get frequency range
+    fHz = linspace(specDat.fsRange(1), specDat.fsRange(2), size(bufferPower, 2));
+    
+    % Find index corresponding to lowpass cutoff
+    cutoff_idx = find(fHz <= lowpass_cutoff, 1, 'last');
+    if isempty(cutoff_idx)
+        error('Lowpass cutoff frequency is too low for the available frequency range.');
+    end
+    disp(['Using frequency range up to index ' num2str(cutoff_idx) ' (approx. ' num2str(fHz(cutoff_idx)) ' Hz)']);
+    
+    % For wake: first calculate absolute power (average across epochs)
+    idx = (bufferState == 0);
+    power_sleep(:, 1) = 0;
+    if any(idx)
+        power_sleep(1:cutoff_idx, 1) = mean(bufferPower(idx, 1:cutoff_idx));
+        
+        % Then normalize to get relative power
+        wake_total_power = sum(power_sleep(1:cutoff_idx, 1));
+        power_sleep(:, 2) = 0;
+        if wake_total_power > 0
+            power_sleep(1:cutoff_idx, 2) = 100 * power_sleep(1:cutoff_idx, 1) / wake_total_power;
+        end
+        disp(['Wake total power: ' num2str(wake_total_power)]);
+    else
+        disp('No Wake epochs found');
+    end
+    
+    % For NREM sleep
+    idx = (bufferState == 1);
+    power_sleep(:, 3) = 0;
+    if any(idx)
+        power_sleep(1:cutoff_idx, 3) = mean(bufferPower(idx, 1:cutoff_idx));
+        
+        % Normalize
+        nrem_total_power = sum(power_sleep(1:cutoff_idx, 3));
+        power_sleep(:, 4) = 0;
+        if nrem_total_power > 0
+            power_sleep(1:cutoff_idx, 4) = 100 * power_sleep(1:cutoff_idx, 3) / nrem_total_power;
+        end
+        disp(['NREM total power: ' num2str(nrem_total_power)]);
+    else
+        disp('No NREM epochs found');
+    end
+    
+    % For REM sleep
+    idx = (bufferState == 2);
+    power_sleep(:, 5) = 0;
+    if any(idx)
+        power_sleep(1:cutoff_idx, 5) = mean(bufferPower(idx, 1:cutoff_idx));
+        
+        % Normalize
+        rem_total_power = sum(power_sleep(1:cutoff_idx, 5));
+        power_sleep(:, 6) = 0;
+        if rem_total_power > 0
+            power_sleep(1:cutoff_idx, 6) = 100 * power_sleep(1:cutoff_idx, 5) / rem_total_power;
+        end
+        disp(['REM total power: ' num2str(rem_total_power)]);
+    else
+        disp('No REM epochs found');
+    end
+    
+    % Zero out power values beyond cutoff frequency
+    power_sleep((cutoff_idx+1):end, :) = 0;
+    
+    % Debug: Check if relative power sums to approximately 100%
+    disp('=== POWER SUM VERIFICATION ===');
+    wake_power_sum = sum(power_sleep(1:cutoff_idx, 2));
+    nrem_power_sum = sum(power_sleep(1:cutoff_idx, 4));
+    rem_power_sum = sum(power_sleep(1:cutoff_idx, 6));
+    
+    disp(['Sum of Wake relative power (0-' num2str(lowpass_cutoff) 'Hz): ' num2str(wake_power_sum) '%']);
+    disp(['Sum of NREM relative power (0-' num2str(lowpass_cutoff) 'Hz): ' num2str(nrem_power_sum) '%']);
+    disp(['Sum of REM relative power (0-' num2str(lowpass_cutoff) 'Hz): ' num2str(rem_power_sum) '%']);
+
     % Plot data - duration per hour (unchanged)
     figure;
     tm = (1:totalHour)';
@@ -433,27 +494,32 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
         close;
     end
     
-    % Plot spectral information (unchanged)
+    % Plot spectral information (modified to show cutoff)
     figure;
     fHz = linspace(specDat.fsRange(1), specDat.fsRange(2), size(power_sleep, 1));
     subplot(1, 3, 1);
     plot(fHz, power_sleep(:, 2));
     title('EEG power in Wake'); 
-    ylabel('power');
-    xlabel('frequency (Hz)');
-    set(gca, 'xlim', [0, 50]);
+    ylabel('Relative power (%)');
+    xlabel('Frequency (Hz)');
+    set(gca, 'xlim', [0, lowpass_cutoff]); % Set x limit to cutoff
+    hold on;
+    
     subplot(1, 3, 2);
     plot(fHz, power_sleep(:, 4));
     title('EEG power in NREM sleep'); 
-    ylabel('power');
-    xlabel('frequency (Hz)');
-    set(gca, 'xlim', [0, 50]);
+    ylabel('Relative power (%)');
+    xlabel('Frequency (Hz)');
+    set(gca, 'xlim', [0, lowpass_cutoff]);
+    hold on;
+    
     subplot(1, 3, 3);
     plot(fHz, power_sleep(:, 6));
     title('EEG power in REM sleep'); 
-    ylabel('power');
-    xlabel('frequency (Hz)');
-    set(gca, 'xlim', [0, 50]);
+    ylabel('Relative power (%)');
+    xlabel('Frequency (Hz)');
+    set(gca, 'xlim', [0, lowpass_cutoff]);
+    hold on;
     f1 = fullfile(outputFolder, ['spectral_batch' num2str(batchNumber) '.png']);
     F = getframe(gcf);
     imwrite(F.cdata, f1);
@@ -488,11 +554,21 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
     writecell(label1', fname, 'Sheet', 1, 'Range', 'H2:H6'); 
     writematrix(transit', fname, 'Sheet', 1, 'Range', 'I2:I6'); 
     
-    % Sheet 2 - spectral
+    % Sheet 2 - spectral (only up to lowpass cutoff)
     label1 = {'F(hz)', 'wake-p0', 'wake-p1', 'NREM-p0', 'NREM-p1', 'REM-p0', 'REM-p1'};
     writecell(label1, fname, 'Sheet', 2, 'Range', 'A1:G1'); 
-    lidx = ['A2:G', num2str(1+length(fHz))];
-    writematrix([fHz', power_sleep], fname, 'Sheet', 2, 'Range', lidx);
+    
+    % Only write data up to the cutoff frequency
+    lidx = ['A2:G', num2str(1+cutoff_idx)];
+    writematrix([fHz(1:cutoff_idx)', power_sleep(1:cutoff_idx,:)], fname, 'Sheet', 2, 'Range', lidx);
+    
+    % Add sum verification to Excel
+    sum_labels = {'Relative Power Sums (%)'};
+    writecell(sum_labels, fname, 'Sheet', 2, 'Range', ['A' num2str(cutoff_idx+3)]);
+    sum_labels = {'Wake', 'NREM', 'REM'};
+    writecell(sum_labels, fname, 'Sheet', 2, 'Range', ['A' num2str(cutoff_idx+4) ':C' num2str(cutoff_idx+4)]);
+    sums = [wake_power_sum, nrem_power_sum, rem_power_sum];
+    writematrix(sums, fname, 'Sheet', 2, 'Range', ['A' num2str(cutoff_idx+5) ':C' num2str(cutoff_idx+5)]);
     
     % Sheet 3 - original hourly
     label1 = {'Hour#', 'Wake', 'NREMS', 'REMS'};
@@ -501,11 +577,21 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
     writematrix([tm, dur_perh], fname, 'Sheet', 3, 'Range', lidx);
     disp(['Data saved in Excel file: ' fname]);
     
+    % Add lowpass cutoff information
+    label1 = {'Analysis Parameters'};
+    writecell(label1, fname, 'Sheet', 1, 'Range', 'H8');
+    label1 = {'Lowpass Cutoff (Hz)'};
+    writecell(label1, fname, 'Sheet', 1, 'Range', 'H9');
+    writematrix(lowpass_cutoff, fname, 'Sheet', 1, 'Range', 'I9');
+
     % Display summary
     disp('Bout summary:');
     disp(bouts);
     disp('Transition summary:');
     disp(transit);
+
+    % Display the cutoff used
+    disp(['Analysis used lowpass cutoff of ' num2str(lowpass_cutoff) ' Hz']);
 end
 
 % Main script execution flow
@@ -569,7 +655,7 @@ for batchIdx = 1:numBatches
     batchFileLists{batchIdx} = batchFiles;
     
     % Process this batch
-    processFileBatch(batchFiles, batchIdx, startMin, lightseting, outputDir);
+    processFileBatch(batchFiles, batchIdx, startMin, lightseting, outputDir, lowpass_cutoff);
     disp('--------------------------------------------------');
 end
 
