@@ -3,7 +3,7 @@
 
 %%
 % ------------folder name first-------------
-base_folder = '/Users/davidrivas/Documents/research/eeg/eeg-data/Artemis/K168-2';
+base_folder = '/Users/davidrivas/Documents/research/eeg/eeg-data/Artemis/K168-5';
 startMin = 0; % Start minute of processed data
 lightseting = [6,18]; % Light on and off time
 lowpass_cutoff = 40; % Lowpass filter cutoff frequency in Hz
@@ -143,7 +143,7 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
             dur_perh(fileNumber, :) = sleepData.dur;
         end
     end
-    
+
     if totalHour == 0
         disp('No valid data found in this batch.');
         return;
@@ -592,6 +592,192 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
 
     % Display the cutoff used
     disp(['Analysis used lowpass cutoff of ' num2str(lowpass_cutoff) ' Hz']);
+
+    % Sheet 4 - detailed epoch information
+    disp('Creating detailed epoch listing in Sheet 4');
+    
+    % Write sleep summary header
+    writecell({'----sleep summary---------'}, fname, 'Sheet', 4, 'Range', 'A1');
+    
+    % Write time summary with proper column placement
+    writecell({'total Wake/NREM/REM time(min):'}, fname, 'Sheet', 4, 'Range', 'A2');
+    writematrix([dur_24h(1,1), dur_24h(1,2), dur_24h(1,3)], fname, 'Sheet', 4, 'Range', 'D2:F2');
+    
+    % NREM epoch count and details
+    if ~isempty(bufferNREM)
+        writecell({'total NREM sleep epoches:'}, fname, 'Sheet', 4, 'Range', 'A3');
+        writematrix(size(bufferNREM, 1), fname, 'Sheet', 4, 'Range', 'D3');
+        
+        % NREM average duration
+        writecell({'average NREM sleep duration per epoch:'}, fname, 'Sheet', 4, 'Range', 'A4');
+        writematrix(mean(bufferNREM(:,4)), fname, 'Sheet', 4, 'Range', 'D4');
+        writecell({'(sec)'}, fname, 'Sheet', 4, 'Range', 'E4');
+    end
+    
+    % REM epoch count and details
+    if ~isempty(bufferREM)
+        writecell({'total REM sleep epoches:'}, fname, 'Sheet', 4, 'Range', 'A5');
+        writematrix(size(bufferREM, 1), fname, 'Sheet', 4, 'Range', 'D5');
+        
+        % REM average duration
+        writecell({'average REM sleep duration per epoch:'}, fname, 'Sheet', 4, 'Range', 'A6');
+        writematrix(mean(bufferREM(:,4)), fname, 'Sheet', 4, 'Range', 'D6');
+        writecell({'(sec)'}, fname, 'Sheet', 4, 'Range', 'E6');
+    end
+    
+    % Add spacing
+    writecell({''}, fname, 'Sheet', 4, 'Range', 'A7');
+    
+    % Write NREM epoch details header
+    writecell({'----NREM sleep epoches(#/startTime/endTime/duration(sec)/fileNum/lightDark)---------'}, fname, 'Sheet', 4, 'Range', 'A8');
+    
+    % Add column headers for NREM epochs - now with file number and light/dark columns
+    writecell({'#', 'startTime', 'endTime', 'duration(sec)', 'fileNum', 'lightDark'}, fname, 'Sheet', 4, 'Range', 'A9:F9');
+    
+    % Write NREM epochs data directly (preserving original format without reindexing)
+    if ~isempty(bufferNREM)
+        % Sort the epochs by start time if needed (they should already be in order)
+        [~, idx] = sort(bufferNREM(:, 1));
+        sortedNREM = bufferNREM(idx, :);
+        
+        % Create a table with the file numbers and light/dark labels
+        nremEpochsTable = sortedNREM(:, 1:6); % Now includes fileNum and lightDark columns
+        
+        % Convert numeric light/dark indicators to text labels
+        lightDarkLabels = cell(size(nremEpochsTable, 1), 1);
+        for i = 1:size(nremEpochsTable, 1)
+            if nremEpochsTable(i, 6) == 1
+                lightDarkLabels{i} = 'Light';
+            else
+                lightDarkLabels{i} = 'Dark';
+            end
+        end
+        
+        % Write the NREM epochs numeric data
+        start_row = 10;
+        end_row = start_row + size(nremEpochsTable, 1) - 1;
+        range = ['A' num2str(start_row) ':E' num2str(end_row)];
+        writematrix(nremEpochsTable(:, 1:5), fname, 'Sheet', 4, 'Range', range);
+        
+        % Write the light/dark text labels
+        range = ['F' num2str(start_row) ':F' num2str(end_row)];
+        writecell(lightDarkLabels, fname, 'Sheet', 4, 'Range', range);
+        
+        % Update start_row for REM epochs
+        start_row = end_row + 2;
+    else
+        % If no NREM epochs, just set start_row for REM epochs
+        start_row = 10;
+    end
+    
+    % Write REM epoch details header
+    writecell({''}, fname, 'Sheet', 4, 'Range', ['A' num2str(start_row)]);
+    writecell({'----REM sleep epoches(#/startTime/endTime/duration(sec)/fileNum/lightDark)---------'}, fname, 'Sheet', 4, 'Range', ['A' num2str(start_row+1)]);
+    
+    % Add column headers for REM epochs
+    header_row = start_row + 2;
+    writecell({'#', 'startTime', 'endTime', 'duration(sec)', 'fileNum', 'lightDark'}, fname, 'Sheet', 4, 'Range', ['A' num2str(header_row) ':F' num2str(header_row)]);
+    
+    % Write REM epochs data directly
+    if ~isempty(bufferREM)
+        % Sort the epochs by start time
+        [~, idx] = sort(bufferREM(:, 1));
+        sortedREM = bufferREM(idx, :);
+        
+        % Include columns for file number and light/dark period
+        remEpochsTable = sortedREM(:, 1:6);
+        
+        % Convert numeric light/dark indicators to text labels
+        lightDarkLabels = cell(size(remEpochsTable, 1), 1);
+        for i = 1:size(remEpochsTable, 1)
+            if remEpochsTable(i, 6) == 1
+                lightDarkLabels{i} = 'Light';
+            else
+                lightDarkLabels{i} = 'Dark';
+            end
+        end
+        
+        % Write the REM epochs numeric data
+        rem_start_row = header_row + 1;
+        rem_end_row = rem_start_row + size(remEpochsTable, 1) - 1;
+        range = ['A' num2str(rem_start_row) ':E' num2str(rem_end_row)];
+        writematrix(remEpochsTable(:, 1:5), fname, 'Sheet', 4, 'Range', range);
+        
+        % Write the light/dark text labels
+        range = ['F' num2str(rem_start_row) ':F' num2str(rem_end_row)];
+        writecell(lightDarkLabels, fname, 'Sheet', 4, 'Range', range);
+    else
+        rem_end_row = header_row;
+    end
+    
+    % Add Wake epoch details
+    start_row = rem_end_row + 2;
+    
+    % Write Wake epoch details header
+    writecell({''}, fname, 'Sheet', 4, 'Range', ['A' num2str(start_row)]);
+    writecell({'----Wake epoches(#/startTime/endTime/duration(sec)/fileNum/lightDark)---------'}, fname, 'Sheet', 4, 'Range', ['A' num2str(start_row+1)]);
+    
+    % Add column headers for Wake epochs
+    header_row = start_row + 2;
+    writecell({'#', 'startTime', 'endTime', 'duration(sec)', 'fileNum', 'lightDark'}, fname, 'Sheet', 4, 'Range', ['A' num2str(header_row) ':F' num2str(header_row)]);
+    
+    % Write Wake epochs data directly
+    if ~isempty(bufferWake)
+        % Sort the epochs by start time
+        [~, idx] = sort(bufferWake(:, 1));
+        sortedWake = bufferWake(idx, :);
+        
+        % Include columns for file number and light/dark period
+        wakeEpochsTable = sortedWake(:, 1:6);
+        
+        % Convert numeric light/dark indicators to text labels
+        lightDarkLabels = cell(size(wakeEpochsTable, 1), 1);
+        for i = 1:size(wakeEpochsTable, 1)
+            if wakeEpochsTable(i, 6) == 1
+                lightDarkLabels{i} = 'Light';
+            else
+                lightDarkLabels{i} = 'Dark';
+            end
+        end
+        
+        % Write the Wake epochs numeric data
+        wake_start_row = header_row + 1;
+        wake_end_row = wake_start_row + size(wakeEpochsTable, 1) - 1;
+        range = ['A' num2str(wake_start_row) ':E' num2str(wake_end_row)];
+        writematrix(wakeEpochsTable(:, 1:5), fname, 'Sheet', 4, 'Range', range);
+        
+        % Write the light/dark text labels
+        range = ['F' num2str(wake_start_row) ':F' num2str(wake_end_row)];
+        writecell(lightDarkLabels, fname, 'Sheet', 4, 'Range', range);
+    end
+    
+    % Add a mapping of file numbers to actual filenames
+    if ~isempty(fileList)
+        % Start several rows below the last sleep data
+        file_map_row = wake_end_row + 4;
+        
+        % Header for file mapping
+        writecell({'----File Number Mapping---------'}, fname, 'Sheet', 4, 'Range', ['A' num2str(file_map_row)]);
+        writecell({'FileNum', 'Filename'}, fname, 'Sheet', 4, 'Range', ['A' num2str(file_map_row+1) ':B' num2str(file_map_row+1)]);
+        
+        % Create file mapping data
+        fileNumData = (1:length(fileList))';
+        fileNameData = cell(length(fileList), 1);
+        
+        for i = 1:length(fileList)
+            [~, filename, ext] = fileparts(fileList{i});
+            fileNameData{i} = [filename ext];
+        end
+        
+        % Write file number mapping
+        range = ['A' num2str(file_map_row+2) ':A' num2str(file_map_row+1+length(fileList))];
+        writematrix(fileNumData, fname, 'Sheet', 4, 'Range', range);
+        
+        range = ['B' num2str(file_map_row+2) ':B' num2str(file_map_row+1+length(fileList))];
+        writecell(fileNameData, fname, 'Sheet', 4, 'Range', range);
+    end
+    
+    disp('Epoch details added to Sheet 4.');
 end
 
 % Main script execution flow
