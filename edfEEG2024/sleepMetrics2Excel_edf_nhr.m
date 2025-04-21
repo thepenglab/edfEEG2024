@@ -244,6 +244,54 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
         bufferREM(k,6)=lightmap(i);
     end
 
+    % Mark each epoch with its ZT-hour
+    % We already have the absolute hours in the 't' variable and ZT in the 'ZT' variable
+    if ztFlag
+        % Create a mapping from file hours to ZT hours
+        hourToZT = zeros(totalHour, 1);
+        for i = 1:totalHour
+            hourToZT(i) = ZT(i);
+        end
+        
+        % Initialize a new column in each buffer for ZT-hour
+        if ~isempty(bufferWake)
+            bufferWake(:,7) = zeros(size(bufferWake,1), 1);
+        end
+        if ~isempty(bufferNREM)
+            bufferNREM(:,7) = zeros(size(bufferNREM,1), 1);
+        end
+        if ~isempty(bufferREM)
+            bufferREM(:,7) = zeros(size(bufferREM,1), 1);
+        end
+        
+        % Assign ZT-hour to each epoch based on which file hour it belongs to
+        for i = 1:totalHour
+            if ~isempty(bufferWake)
+                k = bufferWake(:,5) == i;
+                bufferWake(k,7) = hourToZT(i);
+            end
+            if ~isempty(bufferNREM)
+                k = bufferNREM(:,5) == i;
+                bufferNREM(k,7) = hourToZT(i);
+            end
+            if ~isempty(bufferREM)
+                k = bufferREM(:,5) == i;
+                bufferREM(k,7) = hourToZT(i);
+            end
+        end
+    else
+        % If ZT time can't be calculated, fill with NaN
+        if ~isempty(bufferWake)
+            bufferWake(:,7) = NaN(size(bufferWake,1), 1);
+        end
+        if ~isempty(bufferNREM)
+            bufferNREM(:,7) = NaN(size(bufferNREM,1), 1);
+        end
+        if ~isempty(bufferREM)
+            bufferREM(:,7) = NaN(size(bufferREM,1), 1);
+        end
+    end
+
     % Check what phases are present in the data
     have_light_phase = any(lightmap == 1);
     have_dark_phase = any(lightmap == 0);
@@ -612,10 +660,10 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
     writecell({''}, fname, 'Sheet', 3, 'Range', 'A9');
     
     % Write NREM epoch details header
-    writecell({'----NREM sleep epoches(#/startTime/endTime/duration(sec)/fileNum/lightDark)---------'}, fname, 'Sheet', 3, 'Range', 'A10');
+    writecell({'----NREM sleep epoches(#/startTime/endTime/duration(sec)/fileNum/lightDark/ZT-hour)---------'}, fname, 'Sheet', 3, 'Range', 'A10');
     
-    % Add column headers for NREM epochs
-    writecell({'#', 'startTime', 'endTime', 'duration(sec)', 'fileNum', 'lightDark'}, fname, 'Sheet', 3, 'Range', 'A11:F11');
+    % Add column headers for NREM epochs (now with ZT-hour)
+    writecell({'#', 'startTime', 'endTime', 'duration(sec)', 'fileNum', 'lightDark', 'ZT-hour'}, fname, 'Sheet', 3, 'Range', 'A11:G11');
     
     % Write NREM epochs data
     if ~isempty(bufferNREM)
@@ -623,8 +671,8 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
         [~, idx] = sort(bufferNREM(:, 1));
         sortedNREM = bufferNREM(idx, :);
         
-        % Create a table with the file numbers and light/dark labels
-        nremEpochsTable = sortedNREM(:, 1:6);
+        % Include all columns including ZT-hour
+        nremEpochsTable = sortedNREM(:, 1:7);
         
         % Convert numeric light/dark indicators to text labels
         lightDarkLabels = cell(size(nremEpochsTable, 1), 1);
@@ -639,12 +687,18 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
         % Write the NREM epochs numeric data
         start_row = 12;
         end_row = start_row + size(nremEpochsTable, 1) - 1;
+        
+        % Write columns 1-5 (unchanged)
         range = ['A' num2str(start_row) ':E' num2str(end_row)];
         writematrix(nremEpochsTable(:, 1:5), fname, 'Sheet', 3, 'Range', range);
         
-        % Write the light/dark text labels
+        % Write the light/dark text labels (column 6)
         range = ['F' num2str(start_row) ':F' num2str(end_row)];
         writecell(lightDarkLabels, fname, 'Sheet', 3, 'Range', range);
+        
+        % Write the ZT-hour values (column 7)
+        range = ['G' num2str(start_row) ':G' num2str(end_row)];
+        writematrix(nremEpochsTable(:, 7), fname, 'Sheet', 3, 'Range', range);
     end
     
     % Add a mapping of file numbers to actual filenames for NREM sheet
@@ -718,10 +772,10 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
     writecell({''}, fname, 'Sheet', 4, 'Range', 'A9');
     
     % Write REM epoch details header
-    writecell({'----REM sleep epoches(#/startTime/endTime/duration(sec)/fileNum/lightDark)---------'}, fname, 'Sheet', 4, 'Range', 'A10');
+    writecell({'----REM sleep epoches(#/startTime/endTime/duration(sec)/fileNum/lightDark/ZT-hour)---------'}, fname, 'Sheet', 4, 'Range', 'A10');
     
-    % Add column headers for REM epochs
-    writecell({'#', 'startTime', 'endTime', 'duration(sec)', 'fileNum', 'lightDark'}, fname, 'Sheet', 4, 'Range', 'A11:F11');
+    % Add column headers for REM epochs (now with ZT-hour)
+    writecell({'#', 'startTime', 'endTime', 'duration(sec)', 'fileNum', 'lightDark', 'ZT-hour'}, fname, 'Sheet', 4, 'Range', 'A11:G11');
     
     % Write REM epochs data
     if ~isempty(bufferREM)
@@ -729,8 +783,8 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
         [~, idx] = sort(bufferREM(:, 1));
         sortedREM = bufferREM(idx, :);
         
-        % Include columns for file number and light/dark period
-        remEpochsTable = sortedREM(:, 1:6);
+        % Include all columns including ZT-hour
+        remEpochsTable = sortedREM(:, 1:7);
         
         % Convert numeric light/dark indicators to text labels
         lightDarkLabels = cell(size(remEpochsTable, 1), 1);
@@ -745,12 +799,18 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
         % Write the REM epochs numeric data
         start_row = 12;
         end_row = start_row + size(remEpochsTable, 1) - 1;
+        
+        % Write columns 1-5 (unchanged)
         range = ['A' num2str(start_row) ':E' num2str(end_row)];
         writematrix(remEpochsTable(:, 1:5), fname, 'Sheet', 4, 'Range', range);
         
-        % Write the light/dark text labels
+        % Write the light/dark text labels (column 6)
         range = ['F' num2str(start_row) ':F' num2str(end_row)];
         writecell(lightDarkLabels, fname, 'Sheet', 4, 'Range', range);
+        
+        % Write the ZT-hour values (column 7)
+        range = ['G' num2str(start_row) ':G' num2str(end_row)];
+        writematrix(remEpochsTable(:, 7), fname, 'Sheet', 4, 'Range', range);
     end
     
     % Add a mapping of file numbers to actual filenames for REM sheet
@@ -824,10 +884,10 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
     writecell({''}, fname, 'Sheet', 5, 'Range', 'A9');
     
     % Write Wake epoch details header
-    writecell({'----Wake epoches(#/startTime/endTime/duration(sec)/fileNum/lightDark)---------'}, fname, 'Sheet', 5, 'Range', 'A10');
+    writecell({'----Wake epoches(#/startTime/endTime/duration(sec)/fileNum/lightDark/ZT-hour)---------'}, fname, 'Sheet', 5, 'Range', 'A10');
     
-    % Add column headers for Wake epochs
-    writecell({'#', 'startTime', 'endTime', 'duration(sec)', 'fileNum', 'lightDark'}, fname, 'Sheet', 5, 'Range', 'A11:F11');
+    % Add column headers for Wake epochs (now with ZT-hour)
+    writecell({'#', 'startTime', 'endTime', 'duration(sec)', 'fileNum', 'lightDark', 'ZT-hour'}, fname, 'Sheet', 5, 'Range', 'A11:G11');
     
     % Write Wake epochs data
     if ~isempty(bufferWake)
@@ -835,8 +895,8 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
         [~, idx] = sort(bufferWake(:, 1));
         sortedWake = bufferWake(idx, :);
         
-        % Include columns for file number and light/dark period
-        wakeEpochsTable = sortedWake(:, 1:6);
+        % Include all columns including ZT-hour
+        wakeEpochsTable = sortedWake(:, 1:7);
         
         % Convert numeric light/dark indicators to text labels
         lightDarkLabels = cell(size(wakeEpochsTable, 1), 1);
@@ -851,12 +911,18 @@ function processFileBatch(fileList, batchNumber, startMin, lightseting, outputFo
         % Write the Wake epochs numeric data
         start_row = 12;
         end_row = start_row + size(wakeEpochsTable, 1) - 1;
+        
+        % Write columns 1-5 (unchanged)
         range = ['A' num2str(start_row) ':E' num2str(end_row)];
         writematrix(wakeEpochsTable(:, 1:5), fname, 'Sheet', 5, 'Range', range);
         
-        % Write the light/dark text labels
+        % Write the light/dark text labels (column 6)
         range = ['F' num2str(start_row) ':F' num2str(end_row)];
         writecell(lightDarkLabels, fname, 'Sheet', 5, 'Range', range);
+        
+        % Write the ZT-hour values (column 7)
+        range = ['G' num2str(start_row) ':G' num2str(end_row)];
+        writematrix(wakeEpochsTable(:, 7), fname, 'Sheet', 5, 'Range', range);
     end
     
     % Add a mapping of file numbers to actual filenames for Wake sheet
