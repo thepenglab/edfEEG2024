@@ -2,13 +2,14 @@
 % This script:
 % 1. Finds all XLS files in subfolders (one folder per mouse)
 % 2. Groups mice by genotype (wild-type or mutant)
-% 3. Retrieves epoch durations for each mouse and sleep state
+% 3. Retrieves epoch durations and ZT hours for each mouse and sleep state
 % 4. Bins the epochs by their duration (0s, 4s, 8s, 16s, 32s, 64s, 128s, 256s, 512s)
-% 5. Computes averages and standard deviations by genotype
-% 6. Plots results as line, bar, and dot graphs with error bars
+% 5. Calculates average bout duration per ZT hour for each mouse
+% 6. Computes averages and standard deviations by genotype
+% 7. Plots results as line, bar, and dot graphs with error bars
 
 %% Parameters and Setup
-mainFolder = '/Users/davidrivas/Documents/research/eeg/eeg-data/Artemis'; % Use current directory, or specify your path
+mainFolder = '/Users/davidrivas/Documents/research/eeg/eeg-data/Artemis-Jeanette'; % Use current directory, or specify your path
 genotypes = {'wild-type', 'mutant'}; % Define genotypes 
 batchAnalysisFolder = 'batch_analysis_results'; % Name of the subfolder containing .xls files
 summaryFilename = 'processed_files_summary.txt'; % Name of the summary file
@@ -17,6 +18,10 @@ summaryFilename = 'processed_files_summary.txt'; % Name of the summary file
 binEdges = [0, 4, 8, 16, 32, 64, 128, 256, 512, inf];
 binLabels = {'0-4s', '4-8s', '8-16s', '16-32s', '32-64s', '64-128s', '128-256s', '256-512s', '>512s'};
 numBins = length(binLabels);
+
+% Define ZT hour range (typically 0-23)
+ztHours = 0:23;
+numZtHours = length(ztHours);
 
 % Create output folder for saving figures
 outputFolder = fullfile(mainFolder, 'compiled_plots');
@@ -31,6 +36,11 @@ end
 epochCounts = struct();
 epochCounts.wild_type = struct('nrem', zeros(0, numBins), 'rem', zeros(0, numBins), 'wake', zeros(0, numBins));
 epochCounts.mutant = struct('nrem', zeros(0, numBins), 'rem', zeros(0, numBins), 'wake', zeros(0, numBins));
+
+% Create structures to store ZT hour data by genotype and mouse
+ztHourData = struct();
+ztHourData.wild_type = struct('nrem', [], 'rem', [], 'wake', []);
+ztHourData.mutant = struct('nrem', [], 'rem', [], 'wake', []);
 
 % Create structure to store animal IDs by genotype
 animalIDs = struct();
@@ -233,10 +243,14 @@ for i = 1:length(mouseFolders)
     [~, sortedIdx] = sort(batchNumbers);
     xlsFiles = xlsFiles(sortedIdx);
     
-    % Initialize arrays to store epoch durations for this mouse
+    % Initialize arrays to store epoch durations and ZT hours for this mouse
     nremEpochs = [];
     remEpochs = [];
     wakeEpochs = [];
+    
+    nremZtHours = [];  % New array to store ZT hours for NREM epochs
+    remZtHours = [];   % New array to store ZT hours for REM epochs
+    wakeZtHours = [];  % New array to store ZT hours for Wake epochs
     
     % Process each XLS file for this mouse
     for j = 1:length(xlsFiles)
@@ -244,42 +258,55 @@ for i = 1:length(mouseFolders)
         fprintf('  Processing file: %s\n', xlsFiles(j).name);
             
         try
-            % Read NREM epoch durations (sheet 3)
+            % Read NREM epoch durations and ZT hours (sheet 3)
             try
                 % Read using readmatrix
                 opts = detectImportOptions(xlsPath, 'Sheet', 3);
                 if ~isempty(opts.VariableNames)
-                    % Try to find the duration column by name
+                    % Try to find the duration and ZT hour columns by name
                     durIdx = find(contains(opts.VariableNames, 'duration', 'IgnoreCase', true));
-                    if ~isempty(durIdx)
+                    ztHourIdx = find(contains(opts.VariableNames, 'zt', 'IgnoreCase', true) | ...
+                                     contains(opts.VariableNames, 'hour', 'IgnoreCase', true));
+                    
+                    if ~isempty(durIdx) && ~isempty(ztHourIdx)
                         % Set all variables to be imported as numeric
                         opts = setvartype(opts, 'numeric');
-                        % Read only the duration column
-                        opts.SelectedVariableNames = opts.VariableNames(durIdx(1));
+                        % Read duration and ZT hour columns
+                        opts.SelectedVariableNames = [opts.VariableNames(durIdx(1)), opts.VariableNames(ztHourIdx(1))];
                         data = readmatrix(xlsPath, opts);
                         
-                        % Add valid durations to collection
-                        validDurations = data(~isnan(data));
+                        % Add valid durations and ZT hours to collection
+                        validIndices = ~isnan(data(:,1)) & ~isnan(data(:,2));
+                        validDurations = data(validIndices, 1);
+                        validZtHours = data(validIndices, 2);
+                        
                         nremEpochs = [nremEpochs; validDurations];
-                        fprintf('    Found %d NREM epochs\n', length(validDurations));
+                        nremZtHours = [nremZtHours; validZtHours];
+                        fprintf('    Found %d NREM epochs with ZT hours\n', length(validDurations));
                     else
-                        % Fall back to reading raw data and extracting column D
+                        % Fall back to reading raw data and extracting columns D and G
                         data = readmatrix(xlsPath, 'Sheet', 3);
-                        if size(data, 2) >= 4 % Ensure we have at least 4 columns
-                            % Extract column D (4th column)
-                            colData = data(:, 4);
+                        if size(data, 2) >= 7 % Ensure we have at least 7 columns
+                            % Extract column D (4th column) for durations
+                            durCol = data(:, 4);
+                            % Extract column G (7th column) for ZT hours
+                            ztCol = data(:, 7);
+                            
                             % Skip first 11 rows (headers) and get valid data
-                            validRows = 12:size(colData, 1);
+                            validRows = 12:size(durCol, 1);
                             if any(validRows)
-                                validDurations = colData(validRows);
-                                validDurations = validDurations(~isnan(validDurations));
+                                validIndices = ~isnan(durCol(validRows)) & ~isnan(ztCol(validRows));
+                                validDurations = durCol(validRows(validIndices));
+                                validZtHours = ztCol(validRows(validIndices));
+                                
                                 nremEpochs = [nremEpochs; validDurations];
-                                fprintf('    Found %d NREM epochs\n', length(validDurations));
+                                nremZtHours = [nremZtHours; validZtHours];
+                                fprintf('    Found %d NREM epochs with ZT hours\n', length(validDurations));
                             else
                                 fprintf('    No valid NREM epochs found\n');
                             end
                         else
-                            fprintf('    NREM sheet has fewer than 4 columns\n');
+                            fprintf('    NREM sheet has fewer than 7 columns\n');
                         end
                     end
                 else
@@ -291,50 +318,68 @@ for i = 1:length(mouseFolders)
                 % Try using basic Excel reading
                 try
                     [num, ~, ~] = xlsread(xlsPath, 3);
-                    if size(num, 2) >= 4
-                        % Find all non-NaN values in column 4 (D)
-                        colData = num(:, 4);
-                        validDurations = colData(~isnan(colData));
+                    if size(num, 2) >= 7
+                        % Find all non-NaN values in columns 4 (D) and 7 (G)
+                        durCol = num(:, 4);
+                        ztCol = num(:, 7);
+                        
+                        validIndices = ~isnan(durCol) & ~isnan(ztCol);
+                        validDurations = durCol(validIndices);
+                        validZtHours = ztCol(validIndices);
+                        
                         nremEpochs = [nremEpochs; validDurations];
-                        fprintf('    Found %d NREM epochs using fallback method\n', length(validDurations));
+                        nremZtHours = [nremZtHours; validZtHours];
+                        fprintf('    Found %d NREM epochs with ZT hours using fallback method\n', length(validDurations));
                     else
-                        fprintf('    NREM sheet has fewer than 4 columns in fallback method\n');
+                        fprintf('    NREM sheet has fewer than 7 columns in fallback method\n');
                     end
                 catch e2
                     fprintf('    Error in fallback method for NREM sheet: %s\n', e2.message);
                 end
             end
             
-            % Read REM epoch durations (sheet 4)
+            % Read REM epoch durations and ZT hours (sheet 4)
             try
                 % Read using readmatrix
                 opts = detectImportOptions(xlsPath, 'Sheet', 4);
                 if ~isempty(opts.VariableNames)
                     durIdx = find(contains(opts.VariableNames, 'duration', 'IgnoreCase', true));
-                    if ~isempty(durIdx)
+                    ztHourIdx = find(contains(opts.VariableNames, 'zt', 'IgnoreCase', true) | ...
+                                     contains(opts.VariableNames, 'hour', 'IgnoreCase', true));
+                    
+                    if ~isempty(durIdx) && ~isempty(ztHourIdx)
                         opts = setvartype(opts, 'numeric');
-                        opts.SelectedVariableNames = opts.VariableNames(durIdx(1));
+                        opts.SelectedVariableNames = [opts.VariableNames(durIdx(1)), opts.VariableNames(ztHourIdx(1))];
                         data = readmatrix(xlsPath, opts);
                         
-                        validDurations = data(~isnan(data));
+                        validIndices = ~isnan(data(:,1)) & ~isnan(data(:,2));
+                        validDurations = data(validIndices, 1);
+                        validZtHours = data(validIndices, 2);
+                        
                         remEpochs = [remEpochs; validDurations];
-                        fprintf('    Found %d REM epochs\n', length(validDurations));
+                        remZtHours = [remZtHours; validZtHours];
+                        fprintf('    Found %d REM epochs with ZT hours\n', length(validDurations));
                     else
-                        % Fall back to reading raw data and extracting column D
+                        % Fall back to reading raw data and extracting columns D and G
                         data = readmatrix(xlsPath, 'Sheet', 4);
-                        if size(data, 2) >= 4
-                            colData = data(:, 4);
-                            validRows = 12:size(colData, 1);
+                        if size(data, 2) >= 7
+                            durCol = data(:, 4);
+                            ztCol = data(:, 7);
+                            
+                            validRows = 12:size(durCol, 1);
                             if any(validRows)
-                                validDurations = colData(validRows);
-                                validDurations = validDurations(~isnan(validDurations));
+                                validIndices = ~isnan(durCol(validRows)) & ~isnan(ztCol(validRows));
+                                validDurations = durCol(validRows(validIndices));
+                                validZtHours = ztCol(validRows(validIndices));
+                                
                                 remEpochs = [remEpochs; validDurations];
-                                fprintf('    Found %d REM epochs\n', length(validDurations));
+                                remZtHours = [remZtHours; validZtHours];
+                                fprintf('    Found %d REM epochs with ZT hours\n', length(validDurations));
                             else
                                 fprintf('    No valid REM epochs found\n');
                             end
                         else
-                            fprintf('    REM sheet has fewer than 4 columns\n');
+                            fprintf('    REM sheet has fewer than 7 columns\n');
                         end
                     end
                 else
@@ -346,49 +391,67 @@ for i = 1:length(mouseFolders)
                 try
                     % Try using basic Excel reading
                     [num, ~, ~] = xlsread(xlsPath, 4);
-                    if size(num, 2) >= 4
-                        colData = num(:, 4);
-                        validDurations = colData(~isnan(colData));
+                    if size(num, 2) >= 7
+                        durCol = num(:, 4);
+                        ztCol = num(:, 7);
+                        
+                        validIndices = ~isnan(durCol) & ~isnan(ztCol);
+                        validDurations = durCol(validIndices);
+                        validZtHours = ztCol(validIndices);
+                        
                         remEpochs = [remEpochs; validDurations];
-                        fprintf('    Found %d REM epochs using fallback method\n', length(validDurations));
+                        remZtHours = [remZtHours; validZtHours];
+                        fprintf('    Found %d REM epochs with ZT hours using fallback method\n', length(validDurations));
                     else
-                        fprintf('    REM sheet has fewer than 4 columns in fallback method\n');
+                        fprintf('    REM sheet has fewer than 7 columns in fallback method\n');
                     end
                 catch e2
                     fprintf('    Error in fallback method for REM sheet: %s\n', e2.message);
                 end
             end
             
-            % Read Wake epoch durations (sheet 5)
+            % Read Wake epoch durations and ZT hours (sheet 5)
             try
                 % Read using readmatrix
                 opts = detectImportOptions(xlsPath, 'Sheet', 5);
                 if ~isempty(opts.VariableNames)
                     durIdx = find(contains(opts.VariableNames, 'duration', 'IgnoreCase', true));
-                    if ~isempty(durIdx)
+                    ztHourIdx = find(contains(opts.VariableNames, 'zt', 'IgnoreCase', true) | ...
+                                     contains(opts.VariableNames, 'hour', 'IgnoreCase', true));
+                    
+                    if ~isempty(durIdx) && ~isempty(ztHourIdx)
                         opts = setvartype(opts, 'numeric');
-                        opts.SelectedVariableNames = opts.VariableNames(durIdx(1));
+                        opts.SelectedVariableNames = [opts.VariableNames(durIdx(1)), opts.VariableNames(ztHourIdx(1))];
                         data = readmatrix(xlsPath, opts);
                         
-                        validDurations = data(~isnan(data));
+                        validIndices = ~isnan(data(:,1)) & ~isnan(data(:,2));
+                        validDurations = data(validIndices, 1);
+                        validZtHours = data(validIndices, 2);
+                        
                         wakeEpochs = [wakeEpochs; validDurations];
-                        fprintf('    Found %d Wake epochs\n', length(validDurations));
+                        wakeZtHours = [wakeZtHours; validZtHours];
+                        fprintf('    Found %d Wake epochs with ZT hours\n', length(validDurations));
                     else
-                        % Fall back to reading raw data and extracting column D
+                        % Fall back to reading raw data and extracting columns D and G
                         data = readmatrix(xlsPath, 'Sheet', 5);
-                        if size(data, 2) >= 4
-                            colData = data(:, 4);
-                            validRows = 12:size(colData, 1);
+                        if size(data, 2) >= 7
+                            durCol = data(:, 4);
+                            ztCol = data(:, 7);
+                            
+                            validRows = 12:size(durCol, 1);
                             if any(validRows)
-                                validDurations = colData(validRows);
-                                validDurations = validDurations(~isnan(validDurations));
+                                validIndices = ~isnan(durCol(validRows)) & ~isnan(ztCol(validRows));
+                                validDurations = durCol(validRows(validIndices));
+                                validZtHours = ztCol(validRows(validIndices));
+                                
                                 wakeEpochs = [wakeEpochs; validDurations];
-                                fprintf('    Found %d Wake epochs\n', length(validDurations));
+                                wakeZtHours = [wakeZtHours; validZtHours];
+                                fprintf('    Found %d Wake epochs with ZT hours\n', length(validDurations));
                             else
                                 fprintf('    No valid Wake epochs found\n');
                             end
                         else
-                            fprintf('    Wake sheet has fewer than 4 columns\n');
+                            fprintf('    Wake sheet has fewer than 7 columns\n');
                         end
                     end
                 else
@@ -400,13 +463,19 @@ for i = 1:length(mouseFolders)
                 try
                     % Try using basic Excel reading
                     [num, ~, ~] = xlsread(xlsPath, 5);
-                    if size(num, 2) >= 4
-                        colData = num(:, 4);
-                        validDurations = colData(~isnan(colData));
+                    if size(num, 2) >= 7
+                        durCol = num(:, 4);
+                        ztCol = num(:, 7);
+                        
+                        validIndices = ~isnan(durCol) & ~isnan(ztCol);
+                        validDurations = durCol(validIndices);
+                        validZtHours = ztCol(validIndices);
+                        
                         wakeEpochs = [wakeEpochs; validDurations];
-                        fprintf('    Found %d Wake epochs using fallback method\n', length(validDurations));
+                        wakeZtHours = [wakeZtHours; validZtHours];
+                        fprintf('    Found %d Wake epochs with ZT hours using fallback method\n', length(validDurations));
                     else
-                        fprintf('    Wake sheet has fewer than 4 columns in fallback method\n');
+                        fprintf('    Wake sheet has fewer than 7 columns in fallback method\n');
                     end
                 catch e2
                     fprintf('    Error in fallback method for Wake sheet: %s\n', e2.message);
@@ -437,6 +506,44 @@ for i = 1:length(mouseFolders)
     epochCounts.(mouseGenotype).rem = [epochCounts.(mouseGenotype).rem; remBinCounts];
     epochCounts.(mouseGenotype).wake = [epochCounts.(mouseGenotype).wake; wakeBinCounts];
     
+    % Calculate average bout duration by ZT hour for this mouse
+    % Initialize arrays for average durations by ZT hour
+    nremZtAvgDur = nan(1, numZtHours);
+    remZtAvgDur = nan(1, numZtHours);
+    wakeZtAvgDur = nan(1, numZtHours);
+    
+    % Calculate average duration for each ZT hour
+    for zt = 1:numZtHours
+        % NREM
+        ztIndices = nremZtHours == (zt-1); % ZT hours are 0-23 but indices are 1-24
+        if any(ztIndices)
+            nremZtAvgDur(zt) = mean(nremEpochs(ztIndices));
+        end
+        
+        % REM
+        ztIndices = remZtHours == (zt-1);
+        if any(ztIndices)
+            remZtAvgDur(zt) = mean(remEpochs(ztIndices));
+        end
+        
+        % Wake
+        ztIndices = wakeZtHours == (zt-1);
+        if any(ztIndices)
+            wakeZtAvgDur(zt) = mean(wakeEpochs(ztIndices));
+        end
+    end
+    
+    % Store ZT hour data for this mouse
+    if ~isfield(ztHourData.(mouseGenotype), 'mouseIDs')
+        ztHourData.(mouseGenotype).mouseIDs = {};
+    end
+    ztHourData.(mouseGenotype).mouseIDs{end+1} = currentMouseID;
+    
+    % Store average durations by ZT hour
+    ztHourData.(mouseGenotype).nrem = [ztHourData.(mouseGenotype).nrem; nremZtAvgDur];
+    ztHourData.(mouseGenotype).rem = [ztHourData.(mouseGenotype).rem; remZtAvgDur];
+    ztHourData.(mouseGenotype).wake = [ztHourData.(mouseGenotype).wake; wakeZtAvgDur];
+    
     % Store animal ID
     animalIDs.(mouseGenotype){end+1} = currentMouseID;
     
@@ -445,9 +552,13 @@ for i = 1:length(mouseFolders)
     fprintf('    NREM epochs: %d (binned: %s)\n', length(nremEpochs), mat2str(nremBinCounts));
     fprintf('    REM epochs: %d (binned: %s)\n', length(remEpochs), mat2str(remBinCounts));
     fprintf('    Wake epochs: %d (binned: %s)\n', length(wakeEpochs), mat2str(wakeBinCounts));
+    fprintf('    ZT analysis: Found data for %d/%d NREM, %d/%d REM, %d/%d Wake hours\n', ...
+            sum(~isnan(nremZtAvgDur)), numZtHours, ...
+            sum(~isnan(remZtAvgDur)), numZtHours, ...
+            sum(~isnan(wakeZtAvgDur)), numZtHours);
 end
 
-%% Calculate statistics by genotype
+%% Calculate statistics by genotype for epoch duration bins
 % Initialize structures for mean and std values
 meanCounts = struct();
 stdCounts = struct();
@@ -494,13 +605,66 @@ for genotype = {'wild_type', 'mutant'}
     end
 end
 
+%% Calculate statistics by genotype for ZT hour data
+% Initialize structures for mean and std values for ZT hour data
+ztMean = struct();
+ztStd = struct();
+ztSem = struct(); % Standard error of the mean
+
+for genotype = {'wild_type', 'mutant'}
+    gen = genotype{1};
+    if isfield(ztHourData, gen)
+        % Calculate mean and std for NREM ZT hour data
+        if ~isempty(ztHourData.(gen).nrem)
+            ztMean.(gen).nrem = nanmean(ztHourData.(gen).nrem, 1);
+            ztStd.(gen).nrem = nanstd(ztHourData.(gen).nrem, 0, 1);
+            n_valid = sum(~isnan(ztHourData.(gen).nrem), 1);
+            n_valid(n_valid == 0) = NaN; % Avoid division by zero
+            ztSem.(gen).nrem = ztStd.(gen).nrem ./ sqrt(n_valid);
+        else
+            fprintf('No NREM ZT hour data found for genotype: %s\n', gen);
+            ztMean.(gen).nrem = nan(1, numZtHours);
+            ztStd.(gen).nrem = nan(1, numZtHours);
+            ztSem.(gen).nrem = nan(1, numZtHours);
+        end
+        
+        % Calculate mean and std for REM ZT hour data
+        if ~isempty(ztHourData.(gen).rem)
+            ztMean.(gen).rem = nanmean(ztHourData.(gen).rem, 1);
+            ztStd.(gen).rem = nanstd(ztHourData.(gen).rem, 0, 1);
+            n_valid = sum(~isnan(ztHourData.(gen).rem), 1);
+            n_valid(n_valid == 0) = NaN; % Avoid division by zero
+            ztSem.(gen).rem = ztStd.(gen).rem ./ sqrt(n_valid);
+        else
+            fprintf('No REM ZT hour data found for genotype: %s\n', gen);
+            ztMean.(gen).rem = nan(1, numZtHours);
+            ztStd.(gen).rem = nan(1, numZtHours);
+            ztSem.(gen).rem = nan(1, numZtHours);
+        end
+        
+        % Calculate mean and std for Wake ZT hour data
+        if ~isempty(ztHourData.(gen).wake)
+            ztMean.(gen).wake = nanmean(ztHourData.(gen).wake, 1);
+            ztStd.(gen).wake = nanstd(ztHourData.(gen).wake, 0, 1);
+            n_valid = sum(~isnan(ztHourData.(gen).wake), 1);
+            n_valid(n_valid == 0) = NaN; % Avoid division by zero
+            ztSem.(gen).wake = ztStd.(gen).wake ./ sqrt(n_valid);
+        else
+            fprintf('No Wake ZT hour data found for genotype: %s\n', gen);
+            ztMean.(gen).wake = nan(1, numZtHours);
+            ztStd.(gen).wake = nan(1, numZtHours);
+            ztSem.(gen).wake = nan(1, numZtHours);
+        end
+    end
+end
+
 %% Export statistics to multiple sheets in an Excel file
 fprintf('Creating Excel export with multiple sheets...\n');
 
 % Create a consistent bin labels array that includes "Total"
 allBinLabels = ['Total'; binLabels']; 
 
-% 1. Create table for individual mouse data
+% 1. Create table for individual mouse data (original epoch bin data)
 mouseDataTable = array2table(zeros(length(allBinLabels), 0));
 mouseDataTable.Bin = allBinLabels;
 
@@ -529,7 +693,31 @@ for genotype = {'wild_type', 'mutant'}
     end
 end
 
-% 2. Create table for genotype statistics
+% 2. Create table for ZT hour data by individual mouse
+ztMouseDataTable = array2table(zeros(numZtHours, 0));
+ztMouseDataTable.ZT_Hour = ztHours';
+
+fprintf('Preparing ZT hour data by mouse sheet...\n');
+% Add columns for each individual mouse
+for genotype = {'wild_type', 'mutant'}
+    gen = genotype{1};
+    
+    if isfield(ztHourData, gen) && isfield(ztHourData.(gen), 'mouseIDs') && ~isempty(ztHourData.(gen).mouseIDs)
+        for m = 1:length(ztHourData.(gen).mouseIDs)
+            mouseID = ztHourData.(gen).mouseIDs{m};
+            fprintf('  Adding ZT hour data for mouse: %s\n', mouseID);
+            
+            % Add ZT hour average durations for each state
+            if size(ztHourData.(gen).nrem, 1) >= m
+                ztMouseDataTable.([mouseID '_NREM']) = ztHourData.(gen).nrem(m,:)';
+                ztMouseDataTable.([mouseID '_REM']) = ztHourData.(gen).rem(m,:)';
+                ztMouseDataTable.([mouseID '_Wake']) = ztHourData.(gen).wake(m,:)';
+            end
+        end
+    end
+end
+
+% 3. Create table for genotype statistics (original epoch bin data)
 genotypeStatsTable = array2table(zeros(length(allBinLabels), 0));
 genotypeStatsTable.Bin = allBinLabels;
 
@@ -564,20 +752,50 @@ for genotype = {'wild_type', 'mutant'}
     end
 end
 
-% 3. Create a summary table mapping mice to genotypes
+% 4. Create table for ZT hour statistics by genotype
+ztGenotypeStatsTable = array2table(zeros(numZtHours, 0));
+ztGenotypeStatsTable.ZT_Hour = ztHours';
+
+fprintf('Preparing ZT hour statistics by genotype sheet...\n');
+% Add columns for each genotype
+for genotype = {'wild_type', 'mutant'}
+    gen = genotype{1};
+    display_name = strrep(gen, '_', '-'); % Convert 'wild_type' to 'wild-type'
+    
+    if isfield(ztMean, gen)
+        % Mean columns
+        ztGenotypeStatsTable.([display_name '_NREM_Mean']) = ztMean.(gen).nrem';
+        ztGenotypeStatsTable.([display_name '_REM_Mean']) = ztMean.(gen).rem';
+        ztGenotypeStatsTable.([display_name '_Wake_Mean']) = ztMean.(gen).wake';
+        
+        % SD columns
+        ztGenotypeStatsTable.([display_name '_NREM_SD']) = ztStd.(gen).nrem';
+        ztGenotypeStatsTable.([display_name '_REM_SD']) = ztStd.(gen).rem';
+        ztGenotypeStatsTable.([display_name '_Wake_SD']) = ztStd.(gen).wake';
+        
+        % SEM columns
+        ztGenotypeStatsTable.([display_name '_NREM_SEM']) = ztSem.(gen).nrem';
+        ztGenotypeStatsTable.([display_name '_REM_SEM']) = ztSem.(gen).rem';
+        ztGenotypeStatsTable.([display_name '_Wake_SEM']) = ztSem.(gen).wake';
+    end
+end
+
+% 5. Create a summary table mapping mice to genotypes
 mouseGenotypeSummary = table();
 mouseGenotypeSummary.MouseID = [animalIDs.wild_type(:); animalIDs.mutant(:)];
 genotypes_list = [repmat({'wild-type'}, length(animalIDs.wild_type), 1); 
                   repmat({'mutant'}, length(animalIDs.mutant), 1)];
 mouseGenotypeSummary.Genotype = genotypes_list;
 
-% 4. Write all tables to different sheets in the Excel file
+% 6. Write all tables to different sheets in the Excel file
 xlsFilePath = fullfile(mainFolder, 'sleep_epoch_analysis.xls');
 fprintf('Writing data to Excel file: %s\n', xlsFilePath);
 
 % Write to Excel file - different sheets
 writetable(mouseDataTable, xlsFilePath, 'Sheet', 'Mouse_Data');
+writetable(ztMouseDataTable, xlsFilePath, 'Sheet', 'Mouse_ZT_Data');
 writetable(genotypeStatsTable, xlsFilePath, 'Sheet', 'Genotype_Statistics');
+writetable(ztGenotypeStatsTable, xlsFilePath, 'Sheet', 'ZT_Genotype_Statistics');
 writetable(mouseGenotypeSummary, xlsFilePath, 'Sheet', 'Mouse_Genotypes');
 
 fprintf('Excel file created successfully.\n');
@@ -595,7 +813,7 @@ for s = 1:length(states)
     state = states{s};
     stateLabel = stateLabels{s};
     
-    %% 1. Line Plot
+    %% 1. Line Plot for Duration Bins
     figure('Name', [stateLabel ' Epoch Durations - Line Plot'], 'Position', [100, 100, 800, 500]);
     hold on;
     
@@ -625,7 +843,7 @@ for s = 1:length(states)
     saveas(gcf, fullfile(outputFolder, [stateLabel '_Epochs_Line.fig']));
     saveas(gcf, fullfile(outputFolder, [stateLabel '_Epochs_Line.png']));
     
-    %% 2. Bar Plot
+    %% 2. Bar Plot for Duration Bins
     figure('Name', [stateLabel ' Epoch Durations - Bar Plot'], 'Position', [100, 100, 800, 500]);
     hold on;
     
@@ -669,7 +887,7 @@ for s = 1:length(states)
     saveas(gcf, fullfile(outputFolder, [stateLabel '_Epochs_Bar.fig']));
     saveas(gcf, fullfile(outputFolder, [stateLabel '_Epochs_Bar.png']));
     
-    %% 3. Dot Plot (Individual mice with mean)
+    %% 3. Dot Plot for Duration Bins (Individual mice with mean)
     figure('Name', [stateLabel ' Epoch Durations - Dot Plot'], 'Position', [100, 100, 800, 500]);
     hold on;
     
@@ -725,6 +943,156 @@ for s = 1:length(states)
     % Save the figure
     saveas(gcf, fullfile(outputFolder, [stateLabel '_Epochs_Dot.fig']));
     saveas(gcf, fullfile(outputFolder, [stateLabel '_Epochs_Dot.png']));
+    
+    %% 4. Line Plot for ZT hour data
+    figure('Name', [stateLabel ' Bout Duration by ZT Hour - Line Plot'], 'Position', [100, 100, 800, 500]);
+    hold on;
+    
+    % Plot wild-type data with error bars
+    if isfield(ztMean, 'wild_type') && any(~isnan(ztMean.wild_type.(state)))
+        errorbar(ztHours, ztMean.wild_type.(state), ztSem.wild_type.(state), ...
+            'Color', wtColor, 'LineWidth', 2, 'Marker', 'o', 'MarkerFaceColor', wtColor, 'MarkerSize', 8);
+    end
+    
+    % Plot mutant data with error bars
+    if isfield(ztMean, 'mutant') && any(~isnan(ztMean.mutant.(state)))
+        errorbar(ztHours, ztMean.mutant.(state), ztSem.mutant.(state), ...
+            'Color', mutColor, 'LineWidth', 2, 'Marker', 'o', 'MarkerFaceColor', mutColor, 'MarkerSize', 8);
+    end
+    
+    % Add labels and legend
+    title([stateLabel ' Average Bout Duration by ZT Hour']);
+    xlabel('ZT Hour');
+    ylabel('Average Duration (seconds)');
+    xticks(0:2:23);
+    xlim([-0.5, 23.5]);
+    legend('Wild-type (Mean ± SEM)', 'Mutant (Mean ± SEM)', 'Location', 'best');
+    grid on;
+    hold off;
+    
+    % Save the figure
+    saveas(gcf, fullfile(outputFolder, [stateLabel '_ZT_Line.fig']));
+    saveas(gcf, fullfile(outputFolder, [stateLabel '_ZT_Line.png']));
+    
+    %% 5. Bar Plot for ZT hour data
+    figure('Name', [stateLabel ' Bout Duration by ZT Hour - Bar Plot'], 'Position', [100, 100, 800, 500]);
+    hold on;
+    
+    % Bar width and positions
+    barWidth = 0.35;
+    wtPos = ztHours - barWidth/2;
+    mutPos = ztHours + barWidth/2;
+    
+    % Clear previous bar handles
+    clear barHandles;
+    
+    % Plot wild-type bars
+    if isfield(ztMean, 'wild_type') && any(~isnan(ztMean.wild_type.(state)))
+        validIndices = ~isnan(ztMean.wild_type.(state));
+        barHandles(1) = bar(wtPos(validIndices), ztMean.wild_type.(state)(validIndices), barWidth, 'FaceColor', wtColor);
+        
+        % Add error bars
+        errorbar(wtPos(validIndices), ztMean.wild_type.(state)(validIndices), ztStd.wild_type.(state)(validIndices), '.k');
+    end
+    
+    % Plot mutant bars
+    if isfield(ztMean, 'mutant') && any(~isnan(ztMean.mutant.(state)))
+        validIndices = ~isnan(ztMean.mutant.(state));
+        barHandles(2) = bar(mutPos(validIndices), ztMean.mutant.(state)(validIndices), barWidth, 'FaceColor', mutColor);
+        
+        % Add error bars
+        errorbar(mutPos(validIndices), ztMean.mutant.(state)(validIndices), ztStd.mutant.(state)(validIndices), '.k');
+    end
+    
+    % Add labels and legend
+    title([stateLabel ' Average Bout Duration by ZT Hour']);
+    xlabel('ZT Hour');
+    ylabel('Average Duration (seconds)');
+    xticks(0:2:23);
+    xlim([-0.5, 23.5]);
+    
+    % Add legend if both genotypes have data
+    if exist('barHandles', 'var') && numel(barHandles) >= 2
+        legend(barHandles, {'Wild-type (Mean ± SD)', 'Mutant (Mean ± SD)'}, 'Location', 'best');
+    end
+    
+    grid on;
+    hold off;
+    
+    % Save the figure
+    saveas(gcf, fullfile(outputFolder, [stateLabel '_ZT_Bar.fig']));
+    saveas(gcf, fullfile(outputFolder, [stateLabel '_ZT_Bar.png']));
+    
+    %% 6. Dot Plot for ZT hour data (Individual mice with mean)
+    figure('Name', [stateLabel ' Bout Duration by ZT Hour - Dot Plot'], 'Position', [100, 100, 800, 500]);
+    hold on;
+    
+    % Clear previous handles
+    plotHandles = [];
+    legendTexts = {};
+    
+    % Plot individual data points for wild-type
+    if isfield(ztHourData, 'wild_type') && ~isempty(ztHourData.wild_type.(state))
+        for i = 1:size(ztHourData.wild_type.(state), 1)
+            % Skip points that are NaN
+            validIndices = ~isnan(ztHourData.wild_type.(state)(i,:));
+            if any(validIndices)
+                scatter(ztHours(validIndices), ztHourData.wild_type.(state)(i,validIndices), 50, wtColor, 'o', 'filled', 'MarkerFaceAlpha', 0.3);
+            end
+        end
+        
+        % Plot mean with error bars and capture handle
+        validIndices = ~isnan(ztMean.wild_type.(state));
+        if any(validIndices)
+            h_wt = errorbar(ztHours(validIndices), ztMean.wild_type.(state)(validIndices), ztSem.wild_type.(state)(validIndices), ...
+                'Color', wtColor, 'LineWidth', 2, 'Marker', 'o', 'MarkerFaceColor', wtColor, 'MarkerSize', 10);
+            
+            % Add to legend arrays
+            plotHandles = [plotHandles, h_wt];
+            legendTexts{end+1} = 'Wild-type (Mean ± SEM)';
+        end
+    end
+    
+    % Plot individual data points for mutant
+    if isfield(ztHourData, 'mutant') && ~isempty(ztHourData.mutant.(state))
+        for i = 1:size(ztHourData.mutant.(state), 1)
+            % Skip points that are NaN
+            validIndices = ~isnan(ztHourData.mutant.(state)(i,:));
+            if any(validIndices)
+                scatter(ztHours(validIndices)+0.2, ztHourData.mutant.(state)(i,validIndices), 50, mutColor, 'o', 'filled', 'MarkerFaceAlpha', 0.3);
+            end
+        end
+        
+        % Plot mean with error bars and capture handle
+        validIndices = ~isnan(ztMean.mutant.(state));
+        if any(validIndices)
+            h_mut = errorbar(ztHours(validIndices)+0.2, ztMean.mutant.(state)(validIndices), ztSem.mutant.(state)(validIndices), ...
+                'Color', mutColor, 'LineWidth', 2, 'Marker', 'o', 'MarkerFaceColor', mutColor, 'MarkerSize', 10);
+            
+            % Add to legend arrays
+            plotHandles = [plotHandles, h_mut];
+            legendTexts{end+1} = 'Mutant (Mean ± SEM)';
+        end
+    end
+    
+    % Add labels and legend
+    title([stateLabel ' Average Bout Duration by ZT Hour']);
+    xlabel('ZT Hour');
+    ylabel('Average Duration (seconds)');
+    xticks(0:2:23);
+    xlim([-0.5, 23.5]);
+    
+    % Create legend with handles
+    if ~isempty(plotHandles)
+        legend(plotHandles, legendTexts, 'Location', 'best');
+    end
+    
+    grid on;
+    hold off;
+    
+    % Save the figure
+    saveas(gcf, fullfile(outputFolder, [stateLabel '_ZT_Dot.fig']));
+    saveas(gcf, fullfile(outputFolder, [stateLabel '_ZT_Dot.png']));
 end
 
 fprintf('All figures saved to %s\n', outputFolder);
