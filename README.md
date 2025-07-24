@@ -1,6 +1,6 @@
-# edfEEG2024
+# edfEEG
 
-`edfEEG2024` is a MATLAB script designed to analyze EEG/EMG data ('.edf' format) in mice for detection of sleep states, epileptiform spike-wave discharges (SWD), and generalized tonic-clonic seizures (GTCS).
+`edfEEG` is a MATLAB script designed to analyze EEG/EMG data ('.edf' format) in mice for detection of sleep states, epileptiform spike-wave discharges (SWD), and generalized tonic-clonic seizures (GTCS).
 
 #### Author:
 [Dr. Yueqing Peng](https://www.pathology.columbia.edu/profile/yueqing-peng-phd)
